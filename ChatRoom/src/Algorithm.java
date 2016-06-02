@@ -14,6 +14,10 @@ public class Algorithm {
 	private static int[] C = new int[28];
 	private static int[] D = new int[28];
 	
+	// contains all the subkeys for each round in DES
+	private static int[][] subkeys = new int[16][64]; 
+
+	
 	// initial permutation of text (IP)
 	private static final int[] IP =  { 58, 50, 42, 34, 26, 18, 10, 2,
 						  		 	   60, 52, 44, 36, 28, 20, 12, 4,
@@ -164,6 +168,8 @@ public class Algorithm {
 		for (int i = 0; i < subkey.length; i++) 
 			subkey[i] = CD[FP_KEY[i]-1];
 		
+		subkeys[round - 1] = subkey; // store subkey
+		
 		C = Co;
 		D = Do;	
 		
@@ -281,12 +287,25 @@ public class Algorithm {
 		return result;
 	}
 	
+	/**
+	 * @param a the int array with ASCII values to be converted
+	 * @return string representing int array
+	 */
+	private static String convertToString(int[] a) {
+		String result = "";
+		for (int i : a) {
+			result += (char)i;
+		}
+		return result;
+	}
+	
 	/** Driver method for this program. 
 	 * @param plaintext message to be encrypted, 64 bits
 	 * @param key the key to encrypt the data, 64 bits
+	 * @param isDecrypt true if decrypting, false if encrypting
 	 * @return integer array with ciphertext filled with 0 and 1
 	 */
-	private static int[] DES(int[] plaintext, int[] key) {
+	private static int[] DES(int[] plaintext, int[] key, boolean isDecrypt) {
 		
 		// check if plaintext and key are size 64
 		if (plaintext.length != MAX || key.length != MAX) {
@@ -321,8 +340,14 @@ public class Algorithm {
 		
 		// begin the 16 rounds of encryption
 		for (int i = 1; i <= 16; i++) {
-			int subkey[] = getRoundKey(i, key);
-			int[] newRight = mangler(right, subkey);
+			int newRight[];
+			
+			if (isDecrypt) {
+				newRight = mangler(right, subkeys[16-i]);
+			} else {
+				newRight = mangler(right, getRoundKey(i, key));
+			}
+			
 			
 			// left = right and right = left xor newRight
 			int[] temp = new int[left.length];
@@ -355,9 +380,10 @@ public class Algorithm {
 	/** Driver program to implement ECB
 	 * @param plaintext the message to be encrypted
 	 * @param key the key to encrypt
+	 * @param isDecrypt true if decrypting, false if encrypting
 	 * @return integer array with ascii values
 	 */
-	private static int[] ECB(String plaintext, String key) {
+	private static int[] ECB(String plaintext, String key, boolean isDecrypt) {
 		if(key.length() < 8) {
 			System.err.println("Key needs to be at least 8 characters long for ECB");
 			System.exit(1);
@@ -399,7 +425,7 @@ public class Algorithm {
 		 * and parsing that into its decimal value and storing it in ciphertext
 		 */
 		for (int i = 0, index = 0; i <= binaryCiphertext.length-64; i+=64) {
-			int[] temp = DES(Arrays.copyOfRange(binaryCiphertext, i, i+64), keyArray);
+			int[] temp = DES(Arrays.copyOfRange(binaryCiphertext, i, i+64), keyArray, isDecrypt);
 			for (int j = 0; j < temp.length; ) {
 				String ascii = "";
 				int count = 0;
@@ -416,9 +442,10 @@ public class Algorithm {
 	 * @param plaintext the message to be encrypted
 	 * @param key the key to encrypt using ECB
 	 * @param IV the initialization vector that will be xor with first 64 bit of plaintext
+	 * @param isDecrypt true if decrypting, false if encrypting
 	 * @return
 	 */
-	private static int[] CBC(String plaintext, String key, String IV) {
+	private static int[] CBC(String plaintext, String key, String IV, boolean isDecrypt) {
 		if (key.length() < 8 || IV.length() < 8) {
 			System.err.println("Key and IV each need to be at least 8 charcters long for CBC");
 			System.exit(1);
@@ -481,7 +508,7 @@ public class Algorithm {
 	
 			}
 		
-			int[] temp = ECB(ciphertextString, key); 
+			int[] temp = ECB(ciphertextString, key, isDecrypt); 
 			
 			// add result from ECB (temp array) to corresponding location in finalCipertext
 			for (int j = 0; j < temp.length; j++) {
@@ -502,69 +529,5 @@ public class Algorithm {
 		return finalCiphertext;
 	}
 	
-
-	public static void main(String[] args) {
-		// check test cases to make sure algorithms work
-		
-		// check DES
-		int[] plaintext = {0, 0, 0, 0, 0, 0, 0, 1,
-						   0, 0, 1, 0, 0, 0, 1, 1, 
-						   0, 1, 0, 0, 0, 1, 0, 1, 
-						   0, 1, 1, 0, 0, 1, 1, 1,
-						   1, 0, 0, 0, 1, 0, 0, 1, 
-						   1, 0, 1, 0, 1, 0, 1, 1, 
-						   1, 1, 0, 0, 1, 1, 0, 1, 
-						   1, 1, 1, 0, 1, 1, 1, 1}; 
-		
-		int[] key = {0, 0, 0, 1, 0, 0, 1, 1,
-					 0, 0, 1, 1, 0, 1, 0, 0,
-					 0, 1, 0, 1, 0, 1, 1, 1, 
-					 0, 1, 1, 1, 1, 0, 0, 1, 
-					 1, 0, 0, 1, 1, 0, 1, 1, 
-					 1, 0, 1, 1, 1, 1, 0, 0, 
-					 1, 1, 0, 1, 1, 1, 1, 1, 
-					 1, 1, 1, 1, 0, 0, 0, 1};  
-		
-		// what should be returned
-		int[] ciphertext = {1, 0, 0, 0, 0, 1, 0, 1,
-							1, 1, 1, 0, 1, 0, 0, 0, 
-							0, 0, 0, 1, 0, 0, 1, 1, 
-							0, 1, 0, 1, 0, 1, 0, 0,
-							0, 0, 0, 0, 1, 1, 1, 1,
-							0, 0, 0, 0, 1, 0, 1, 0,
-							1, 0, 1, 1, 0, 1, 0, 0,
-							0, 0, 0, 0, 0, 1, 0, 1};
-		
-		int[] myCiphertext = DES(plaintext, key);
-		for (int i = 0; i < myCiphertext.length; i++) {
-			if (ciphertext[i] != myCiphertext[i])
-				System.out.println("Error with DES at index " + i);
-		}
-		
-		// check ECB
-		
-		// what should be returned
-		int[] ciphertextECB =  {198, 252, 213, 112, 106, 165, 23, 145,
-								29, 52, 125, 61, 85, 217, 102, 155};
-		
-		int[] myCiphertextECB = ECB("I LOVE SECURITY", "ABCDEFGH");
-		for (int i = 0; i < myCiphertextECB.length; i++) {
-			if (ciphertextECB[i] != myCiphertextECB[i])
-				System.out.println("Error with ECB at index " + i);
-		}
-
-		// check CBC
-		
-		// what should be returned
-		int[] ciphertextCBC = {63, 69, 76, 252, 154, 205, 193, 162,
-                               46, 88, 102, 161, 151, 14, 56, 97};
-		
-		int[] myCiphertextCBC = CBC("I LOVE SECURITY", "ABCDEFGH", "ABCDEFGH");
-		for (int i = 0; i < myCiphertextCBC.length; i++) {
-			if (ciphertextCBC[i] != myCiphertextCBC[i])
-				System.out.println("Error with CBC at index " + i);
-		}
-				
-	}
 
 }
