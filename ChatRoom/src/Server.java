@@ -24,9 +24,13 @@ public class Server extends JFrame{
 	private JTextArea jta = new JTextArea();
 	private final int PORT_NO = 8888;
 	
+	// to hold all of the names of users online
 	private ArrayList<String> names = new ArrayList<String>();
 	
+	// hold every dataoutputstream for broadcasting
 	private ArrayList<DataOutputStream> outs = new ArrayList<DataOutputStream>();
+	
+	private ServerSocket serverSocket = null;
 	
 	public Server() {
 		// set up gui components
@@ -44,7 +48,7 @@ public class Server extends JFrame{
 		
 		try {
 			// create socket with PORT_NO
-			ServerSocket serverSocket = new ServerSocket(PORT_NO);
+			serverSocket = new ServerSocket(PORT_NO);
 			jta.append("Server started at " + new Date() + "\n"); // display date when server starts
 			while (true) {
 				// accept all clients and give each their own thread to run
@@ -56,6 +60,12 @@ public class Server extends JFrame{
 			
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
+		} finally {
+			try {
+				serverSocket.close();
+			} catch (IOException e) {
+				// nothing we can do here
+			}
 		}
 	}
 	
@@ -98,6 +108,7 @@ public class Server extends JFrame{
 				
 				jta.append(name + " has connected at " + new Date() + "\n");
 				outs.add(out);
+				printToAll(name + " has connected at " + new Date());
 				
 				// infinite loop, get input and display message
 				while (true) {
@@ -115,8 +126,10 @@ public class Server extends JFrame{
 			} finally {
 				// display that the user has disconnected, remove name and output strea 
 				// for that user and clean up
-				jta.append(name + " has disconnected\n");
-				printToAll(name + " has disconnceted");
+				if (name != null) { // in case user does not enter name and exits JOptionPane
+					jta.append(name + " has disconnected\n");
+					printToAll(name + " has disconnceted");
+				}
 				names.remove(name);
 				outs.remove(out);
 				try {

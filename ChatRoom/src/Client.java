@@ -46,11 +46,14 @@ public class Client extends JFrame{
 		p.add(jb, BorderLayout.EAST);
 		
 		setLayout(new BorderLayout());
-		add(p, BorderLayout.NORTH);
+		add(p, BorderLayout.SOUTH);
 		add(new JScrollPane(jta), BorderLayout.CENTER);
 		
 		jta.setEditable(false); // client can't edit text area
 		
+		// wrap words in jtextarea so no need for horizontal scrolling with long messages
+		jta.setWrapStyleWord(true);
+		jta.setLineWrap(true);
 		setTitle("Client");
 		setSize(500, 300);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -125,10 +128,6 @@ public class Client extends JFrame{
 		}
 	}
 	
-	
-	public String getName() {
-		return name;
-	}
 	
 	public static void main(String[] args) {
 		new Client();
