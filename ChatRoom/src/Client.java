@@ -1,4 +1,5 @@
 import java.awt.BorderLayout;
+import java.awt.HeadlessException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.DataInputStream;
@@ -26,25 +27,21 @@ public class Client extends JFrame{
 	private JTextField jtf = new JTextField(); // to input radius
 	private JTextArea jta = new JTextArea();  // display radius and area from server
 	private JButton jb = new JButton("Send");
+	private Socket socket;
 	private DataInputStream in;
 	private DataOutputStream out;
 	private final int PORT_NO = 8888;
 	
+	private String name = "";
+	
 	public Client() {
 		// add gui elements
-		String name = "";
-		name = JOptionPane.showInputDialog("What is your name?");
-		
-		while (name.equals("Hi")) {
-			name = JOptionPane.showInputDialog(name + " is already taken. Input another name");
-		}
-		
 		p.setLayout(new BorderLayout());
 		
 		DefaultCaret caret = (DefaultCaret)jta.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE); // automatically scroll to bottom
 		
-		p.add(new JLabel("Enter radius"), BorderLayout.WEST);
+		p.add(new JLabel("Enter text"), BorderLayout.WEST);
 		p.add(jtf, BorderLayout.CENTER);
 		p.add(jb, BorderLayout.EAST);
 		
@@ -57,16 +54,7 @@ public class Client extends JFrame{
 		setTitle("Client");
 		setSize(500, 300);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setVisible(true);		
-		
-		// create socket and initialize output and input stream
-		try {
-			Socket socket = new Socket("localhost", PORT_NO);
-			in = new DataInputStream(socket.getInputStream());
-			out = new DataOutputStream(socket.getOutputStream());
-		} catch (IOException ioe) {
-			ioe.printStackTrace();
-		}
+		setVisible(true);	
 		
 		// add action listener to text field and button and call same method
 		jtf.addActionListener(new ActionListener() {
@@ -87,30 +75,59 @@ public class Client extends JFrame{
 			
 		});
 		
+		// try to instantiate socket and input/output stream
+		try {
+			socket = new Socket("localhost", PORT_NO);
+			in = new DataInputStream(socket.getInputStream());
+			out = new DataOutputStream(socket.getOutputStream());
+		} catch (IOException ioe) {
+			JOptionPane.showMessageDialog(this, "Can not connct to server.");
+			System.exit(1);
+		}
+		
+		while (true) {
+			try {
+				String input = "";
+				input = in.readUTF();
+				if (input.equals("[SUBMITNAME]")) {
+					name = JOptionPane.showInputDialog(this, "Enter your name").trim();
+					setTitle(name);
+					out.writeUTF(name);
+				} else {
+					jta.append(input + "\n");
+				}
+			} catch (IOException ioe) {
+				//ioe.printStackTrace();
+			} catch (NullPointerException he) { 
+				// close application if user did not enter name
+				System.exit(1);
+			}
+			
+			
+				
+		}
+			
+		
+		
 	}
 	
 	
 	/**
 	 * @param a the action event
-	 * Gets radius from text field, sends it to server and displays area received from server
 	 */
 	public void performAction(ActionEvent a) {
 		try {
-			double radius = Double.parseDouble(jtf.getText().trim());
+			out.writeUTF(jtf.getText().trim());
 			jtf.setText(""); // reset text field
-			out.writeDouble(radius);
-			out.flush();
-			
-			double area = in.readDouble();
-			jta.append("Radius is " + radius + 
-					"\nArea received from server is " + area + "\n");
-			
+			out.flush();			
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
-		} catch (NumberFormatException nfe) { // in case input can't be parsed
-			jta.append("Invalid entry of: " + jtf.getText().trim() + "\n");
-			jtf.setText("");
 		}
+	}
+	
+	
+	public String getName() {
+		return name;
 	}
 	
 	public static void main(String[] args) {
