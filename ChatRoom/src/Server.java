@@ -32,6 +32,9 @@ public class Server extends JFrame{
 	
 	private ServerSocket serverSocket = null;
 	
+	private Algorithm alg = new Algorithm(); // to decrypt/encrypt messages
+	private final String key = "<6$b^*%2"; // random key for encryption/decryption (match client's key)
+	
 	public Server() {
 		// set up gui components
 		setLayout(new BorderLayout());
@@ -45,6 +48,11 @@ public class Server extends JFrame{
 		setSize(500, 300);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setVisible(true);
+		
+		// test algorithm
+		new Algorithm().ECB("HI", key, false);
+		new Algorithm().ECB("BYE", key, true);
+
 		
 		try {
 			// create socket with PORT_NO
@@ -92,7 +100,7 @@ public class Server extends JFrame{
 				out = new DataOutputStream(socket.getOutputStream());
 				
 				// keep looping, trying to get a name from user and break from loop
-				// when name is unique and not empty
+				// when name is unique and not empty (not encrypted)
 				while (true) {
 					out.writeUTF("[SUBMITNAME]");
 					name = in.readUTF();
@@ -110,11 +118,13 @@ public class Server extends JFrame{
 				outs.add(out);
 				printToAll(name + " has connected at " + new Date());
 				
-				// infinite loop, get input and display message
+				// infinite loop, get input, decrypt, and display message 
 				while (true) {
 					String input = in.readUTF();
 					if (input == null) // if user entered nothing, do nothing
 						return;
+					
+					input = decryptMessage(input);
 					
 					jta.append(name + ": " + input + "\n");  // for server logging
  					printToAll(name + ": " + input);
@@ -124,7 +134,7 @@ public class Server extends JFrame{
 			} catch (IOException ioe) {
 				//ioe.printStackTrace();
 			} finally {
-				// display that the user has disconnected, remove name and output strea 
+				// display that the user has disconnected, remove name and output stream 
 				// for that user and clean up
 				if (name != null) { // in case user does not enter name and exits JOptionPane
 					jta.append(name + " has disconnected\n");
@@ -146,15 +156,33 @@ public class Server extends JFrame{
 		
 		/**
 		 * @param msg the message to display to all users
-		 * Broadcast a message to all the users
+		 * Broadcast encrypted message to all the users
 		 */
 		private void printToAll(String msg) {
 			try {
 				for (DataOutputStream dos : outs) 
-					dos.writeUTF(msg);
+					dos.writeUTF(encryptMessage(msg));
 			} catch (IOException ioe){
 				
 			}
+		}
+		
+		/**
+		 * @param m the message to be decrypted
+		 * @return decrypted String using ECB
+		 */
+		private String decryptMessage(String m) {
+			int c[] = alg.ECB(m, key, true);
+			return alg.convertToString(c);
+		}
+		
+		/**
+		 * @param m the message to be encrypted
+		 * @return encrypted String using ECB
+		 */
+		private String encryptMessage(String m) {
+			int c[] = alg.ECB(m, key, false);
+			return alg.convertToString(c);
 		}
 		
 		

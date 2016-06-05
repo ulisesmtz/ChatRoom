@@ -24,15 +24,16 @@ import javax.swing.text.DefaultCaret;
 public class Client extends JFrame{
 
 	private JPanel p = new JPanel();           // panel to hold text field and text area
-	private JTextField jtf = new JTextField(); // to input radius
-	private JTextArea jta = new JTextArea();  // display radius and area from server
+	private JTextField jtf = new JTextField(); // to input message
+	private JTextArea jta = new JTextArea();  
 	private JButton jb = new JButton("Send");
 	private Socket socket;
 	private DataInputStream in;
 	private DataOutputStream out;
 	private final int PORT_NO = 8888;
-	
-	private String name = "";
+	private String name = "";                // name of client
+	private Algorithm alg = new Algorithm(); // to encrypt/decrypt messages
+	private final String key = "<6$b^*%2"; // random key for encryption/decryption (match server's key)
 	
 	public Client() {
 		// add gui elements
@@ -59,6 +60,10 @@ public class Client extends JFrame{
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setVisible(true);	
 		
+		// test algorithms
+		new Algorithm().ECB("a", key, false);
+		new Algorithm().ECB("as", key, true);
+		
 		// add action listener to text field and button and call same method
 		jtf.addActionListener(new ActionListener() {
 
@@ -84,23 +89,24 @@ public class Client extends JFrame{
 			in = new DataInputStream(socket.getInputStream());
 			out = new DataOutputStream(socket.getOutputStream());
 		} catch (IOException ioe) {
-			JOptionPane.showMessageDialog(this, "Can not connct to server.");
+			JOptionPane.showMessageDialog(this, "Can not connect to server.");
 			System.exit(1);
 		}
 		
 		while (true) {
 			try {
-				String input = "";
-				input = in.readUTF();
+				String input = in.readUTF();
 				if (input.equals("[SUBMITNAME]")) {
 					name = JOptionPane.showInputDialog(this, "Enter your name").trim();
 					setTitle(name);
 					out.writeUTF(name);
 				} else {
-					jta.append(input + "\n");
+					jta.append(decryptMessage(input) + "\n");
 				}
 			} catch (IOException ioe) {
 				//ioe.printStackTrace();
+				JOptionPane.showMessageDialog(this, "Error with server. Try again later.");
+				System.exit(1);
 			} catch (NullPointerException he) { 
 				// close application if user did not enter name
 				System.exit(1);
@@ -120,12 +126,36 @@ public class Client extends JFrame{
 	 */
 	public void performAction(ActionEvent a) {
 		try {
-			out.writeUTF(jtf.getText().trim());
+			String msg = jtf.getText().trim();
+			
+			if (!msg.isEmpty()) {
+				out.writeUTF(encryptMessage(msg));
+				out.flush();	
+			}	
+			
 			jtf.setText(""); // reset text field
-			out.flush();			
+
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 		}
+	}
+	
+	/**
+	 * @param m the message to be encrypted
+	 * @return encrypted String
+	 */
+	private String encryptMessage(String m) {
+		int[] temp = alg.ECB(m, key, false);
+		return alg.convertToString(temp);
+	}
+	
+	/**
+	 * @param m the message to be decrypted
+	 * @return decrypted String
+	 */
+	private String decryptMessage(String m) {
+		int[] temp = alg.ECB(m, key, true);
+		return alg.convertToString(temp);
 	}
 	
 	

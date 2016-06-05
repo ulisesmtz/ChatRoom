@@ -291,7 +291,7 @@ public class Algorithm {
 	 * @param a the int array with ASCII values to be converted
 	 * @return string representing int array
 	 */
-	private static String convertToString(int[] a) {
+	public String convertToString(int[] a) {
 		String result = "";
 		for (int i : a) {
 			result += (char)i;
@@ -305,7 +305,7 @@ public class Algorithm {
 	 * @param isDecrypt true if decrypting, false if encrypting
 	 * @return integer array with ciphertext filled with 0 and 1
 	 */
-	private static int[] DES(int[] plaintext, int[] key, boolean isDecrypt) {
+	public int[] DES(int[] plaintext, int[] key, boolean isDecrypt) {
 		
 		// check if plaintext and key are size 64
 		if (plaintext.length != MAX || key.length != MAX) {
@@ -383,7 +383,7 @@ public class Algorithm {
 	 * @param isDecrypt true if decrypting, false if encrypting
 	 * @return integer array with ascii values
 	 */
-	private static int[] ECB(String plaintext, String key, boolean isDecrypt) {
+	public int[] ECB(String plaintext, String key, boolean isDecrypt) {
 		if(key.length() < 8) {
 			System.err.println("Key needs to be at least 8 characters long for ECB");
 			System.exit(1);
@@ -445,7 +445,7 @@ public class Algorithm {
 	 * @param isDecrypt true if decrypting, false if encrypting
 	 * @return
 	 */
-	private static int[] CBC(String plaintext, String key, String IV, boolean isDecrypt) {
+	public int[] CBC(String plaintext, String key, String IV, boolean isDecrypt) {
 		if (key.length() < 8 || IV.length() < 8) {
 			System.err.println("Key and IV each need to be at least 8 charcters long for CBC");
 			System.exit(1);
@@ -529,5 +529,4 @@ public class Algorithm {
 		return finalCiphertext;
 	}
 	
-
 }
