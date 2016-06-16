@@ -2,12 +2,16 @@ import java.awt.BorderLayout;
 import java.awt.HeadlessException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 
+import javax.imageio.ImageIO;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -27,6 +31,7 @@ public class Client extends JFrame{
 	private JTextField jtf = new JTextField(); // to input message
 	private JTextArea jta = new JTextArea();  
 	private JButton jb = new JButton("Send");
+	private JButton picButton = new JButton("Send a pic!");
 	private Socket socket;
 	private DataInputStream in;
 	private DataOutputStream out;
@@ -45,6 +50,7 @@ public class Client extends JFrame{
 		p.add(new JLabel("Enter text"), BorderLayout.WEST);
 		p.add(jtf, BorderLayout.CENTER);
 		p.add(jb, BorderLayout.EAST);
+		p.add(picButton, BorderLayout.AFTER_LAST_LINE);
 		
 		setLayout(new BorderLayout());
 		add(p, BorderLayout.SOUTH);
@@ -79,6 +85,26 @@ public class Client extends JFrame{
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				performAction(arg0);
+			}
+			
+		});
+		
+		picButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				JFileChooser jfc = new JFileChooser();
+				int result = jfc.showOpenDialog(p);
+				if (result == JFileChooser.APPROVE_OPTION) {
+					System.out.println("YY");
+					File file = jfc.getSelectedFile();
+					try {
+						BufferedImage bimg = ImageIO.read(file);
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
 			}
 			
 		});
