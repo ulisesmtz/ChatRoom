@@ -1,5 +1,6 @@
 import java.awt.BorderLayout;
 import java.awt.HeadlessException;
+import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
@@ -10,7 +11,9 @@ import java.io.IOException;
 import java.net.Socket;
 
 import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JEditorPane;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -19,7 +22,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JTextPane;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
+import javax.swing.text.Style;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 
 
 /**
@@ -29,7 +37,7 @@ public class Client extends JFrame{
 
 	private JPanel p = new JPanel();           // panel to hold text field and text area
 	private JTextField jtf = new JTextField(); // to input message
-	private JTextArea jta = new JTextArea();  
+	private JTextPane jta = new JTextPane();  
 	private JButton jb = new JButton("Send");
 	private JButton picButton = new JButton("Send a pic!");
 	private Socket socket;
@@ -43,7 +51,6 @@ public class Client extends JFrame{
 	public Client() {
 		// add gui elements
 		p.setLayout(new BorderLayout());
-		
 		DefaultCaret caret = (DefaultCaret)jta.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE); // automatically scroll to bottom
 		
@@ -56,15 +63,23 @@ public class Client extends JFrame{
 		add(p, BorderLayout.SOUTH);
 		add(new JScrollPane(jta), BorderLayout.CENTER);
 		
-		jta.setEditable(false); // client can't edit text area
+		jta.setEditable(false); // client can't edit textpane
 		
-		// wrap words in jtextarea so no need for horizontal scrolling with long messages
-		jta.setWrapStyleWord(true);
-		jta.setLineWrap(true);
+
 		setTitle("Client");
 		setSize(500, 300);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setVisible(true);	
+		
+		
+		//TODO: TEST using styledcdoc
+		final StyledDocument doc = (StyledDocument) jta.getDocument();
+		final Style style = doc.addStyle("Name", null);	
+		final Style style2 = doc.addStyle("Style", null);
+		StyleConstants.setFontFamily(style2, "SansSerif");
+		
+		
+		
 		
 		// test algorithms
 		new Algorithm().ECB("a", key, false);
@@ -96,12 +111,22 @@ public class Client extends JFrame{
 				JFileChooser jfc = new JFileChooser();
 				int result = jfc.showOpenDialog(p);
 				if (result == JFileChooser.APPROVE_OPTION) {
-					System.out.println("YY");
 					File file = jfc.getSelectedFile();
 					try {
 						BufferedImage bimg = ImageIO.read(file);
+						ImageIcon pic = new ImageIcon(bimg);
+						Image im = pic.getImage();
+						im = im.getScaledInstance(100, 120, Image.SCALE_SMOOTH);
+						pic = new ImageIcon(im);
+						StyleConstants.setIcon(style, pic);
+						try {
+							doc.insertString(doc.getLength(), name, style2);
+							doc.insertString(doc.getLength(), "ignored", style);
+						} catch (BadLocationException e) {
+							e.printStackTrace();
+						}
+
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 				}
@@ -127,7 +152,12 @@ public class Client extends JFrame{
 					setTitle(name);
 					out.writeUTF(name);
 				} else {
-					jta.append(decryptMessage(input) + "\n");
+					try {
+						doc.insertString(doc.getLength(), decryptMessage(input) + "\n", style2);
+					} catch (BadLocationException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 			} catch (IOException ioe) {
 				//ioe.printStackTrace();
