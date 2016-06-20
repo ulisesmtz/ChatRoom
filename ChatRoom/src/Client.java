@@ -1,5 +1,4 @@
 import java.awt.BorderLayout;
-import java.awt.HeadlessException;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -15,14 +14,12 @@ import java.net.Socket;
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JEditorPane;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.text.BadLocationException;
@@ -113,24 +110,18 @@ public class Client extends JFrame{
 				if (result == JFileChooser.APPROVE_OPTION) {
 					File file = jfc.getSelectedFile();
 					try {
+						/*
+						 * Get bufferedimage from file, convert it into array
+						 * of bytes and send array to server
+						 */
 						BufferedImage bimg = ImageIO.read(file);
 						ByteArrayOutputStream baos = new ByteArrayOutputStream();
 						ImageIO.write(bimg, "png", baos);
 						byte[] bytes = baos.toByteArray();
-//						for (byte b : bytes) {
-//							System.out.print(b + " ");
-//						}
 						baos.close();
-//						System.out.println(bytes.length);
 						out.writeUTF("[PICTURE]");
 						out.writeInt(bytes.length);
 						out.write(bytes);
-//						ImageIcon pic = new ImageIcon(bimg);
-//						Image im = pic.getImage();
-//						im = im.getScaledInstance(100, 120, Image.SCALE_SMOOTH);
-//						pic = new ImageIcon(im);
-//						out.writeUTF("[PICTURE]");
-//						ImageIO.write(bimg, "jpg", out);
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -156,16 +147,33 @@ public class Client extends JFrame{
 					name = JOptionPane.showInputDialog(this, "Enter your name").trim();
 					setTitle(name);
 					out.writeUTF(name);
-				} else if (input.equals("[PICTURE]")) {
+				} else if (input.equals("[PICTURE]")) { // image received
+					/*
+					 * Make array of bytes and get bytes from image.
+					 * Convert array to actual image and display image
+					 */
 					int length = in.readInt();
 					byte[] bytes = new byte[length];
 					in.readFully(bytes, 0, length);
+					String n = in.readUTF();
 					BufferedImage b = ImageIO.read(new ByteArrayInputStream(bytes));
-				} else {
+					
+					ImageIcon pic = new ImageIcon(b);
+					Image im = pic.getImage();
+					im = im.getScaledInstance(100, 120, Image.SCALE_SMOOTH);
+					pic = new ImageIcon(im);
+					StyleConstants.setIcon(style, pic);
+					try {
+						doc.insertString(doc.getLength(), n + "\n\t", style2);
+						doc.insertString(doc.getLength(), "ignored", style);
+						doc.insertString(doc.getLength(), "\n", style2);
+					} catch (BadLocationException e) {
+						e.printStackTrace();
+					}
+				} else { // normal text
 					try {
 						doc.insertString(doc.getLength(), decryptMessage(input) + "\n", style2);
 					} catch (BadLocationException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 				}

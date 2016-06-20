@@ -127,14 +127,13 @@ public class Server extends JFrame{
 						int length = in.readInt();
 						byte[] bytes = new byte[length];
 						in.readFully(bytes, 0, length);
-//						for (byte b : bytes) {
-//							System.out.print(b + " ");
-//						}
+
 						jta.append("image received from " + name + "\n");
 						for (DataOutputStream d : outs) {
 							d.writeUTF("[PICTURE]");
 							d.writeInt(length);
 							d.write(bytes, 0, length);
+							d.writeUTF(name);
 						}
 					} else {
 						input = decryptMessage(input);
