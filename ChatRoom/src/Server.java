@@ -1,4 +1,5 @@
 import java.awt.BorderLayout;
+import java.awt.image.BufferedImage;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -7,6 +8,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Date;
 
+import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -99,7 +101,7 @@ public class Server extends JFrame{
 				// keep looping, trying to get a name from user and break from loop
 				// when name is unique and not empty (not encrypted)
 				while (true) {
-					out.writeUTF("[SUBMITNAME]");
+					out.writeUTF("[NAME]");
 					name = in.readUTF();
 					if (name != null && !name.isEmpty()) {
 						synchronized (names) {  // thread safe
@@ -121,10 +123,26 @@ public class Server extends JFrame{
 					if (input == null) // if user entered nothing, do nothing
 						return;
 					
-					input = decryptMessage(input);
+					if (input.equals("[PICTURE]")) {
+						int length = in.readInt();
+						byte[] bytes = new byte[length];
+						in.readFully(bytes, 0, length);
+//						for (byte b : bytes) {
+//							System.out.print(b + " ");
+//						}
+						jta.append("image received from " + name + "\n");
+						for (DataOutputStream d : outs) {
+							d.writeUTF("[PICTURE]");
+							d.writeInt(length);
+							d.write(bytes, 0, length);
+						}
+					} else {
+						input = decryptMessage(input);
+						
+						jta.append(name + ": " + input + "\n");  // for server logging
+	 					printToAll(name + ": " + input);
+					}
 					
-					jta.append(name + ": " + input + "\n");  // for server logging
- 					printToAll(name + ": " + input);
 					
 				}
 				

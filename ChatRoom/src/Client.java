@@ -4,6 +4,8 @@ import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -76,8 +78,6 @@ public class Client extends JFrame{
 		final StyledDocument doc = (StyledDocument) jta.getDocument();
 		final Style style = doc.addStyle("Name", null);	
 		final Style style2 = doc.addStyle("Style", null);
-		StyleConstants.setFontFamily(style2, "SansSerif");
-		
 		
 		
 		
@@ -114,18 +114,23 @@ public class Client extends JFrame{
 					File file = jfc.getSelectedFile();
 					try {
 						BufferedImage bimg = ImageIO.read(file);
-						ImageIcon pic = new ImageIcon(bimg);
-						Image im = pic.getImage();
-						im = im.getScaledInstance(100, 120, Image.SCALE_SMOOTH);
-						pic = new ImageIcon(im);
-						StyleConstants.setIcon(style, pic);
-						try {
-							doc.insertString(doc.getLength(), name, style2);
-							doc.insertString(doc.getLength(), "ignored", style);
-						} catch (BadLocationException e) {
-							e.printStackTrace();
-						}
-
+						ByteArrayOutputStream baos = new ByteArrayOutputStream();
+						ImageIO.write(bimg, "png", baos);
+						byte[] bytes = baos.toByteArray();
+//						for (byte b : bytes) {
+//							System.out.print(b + " ");
+//						}
+						baos.close();
+//						System.out.println(bytes.length);
+						out.writeUTF("[PICTURE]");
+						out.writeInt(bytes.length);
+						out.write(bytes);
+//						ImageIcon pic = new ImageIcon(bimg);
+//						Image im = pic.getImage();
+//						im = im.getScaledInstance(100, 120, Image.SCALE_SMOOTH);
+//						pic = new ImageIcon(im);
+//						out.writeUTF("[PICTURE]");
+//						ImageIO.write(bimg, "jpg", out);
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -147,10 +152,15 @@ public class Client extends JFrame{
 		while (true) {
 			try {
 				String input = in.readUTF();
-				if (input.equals("[SUBMITNAME]")) {
+				if (input.equals("[NAME]")) {
 					name = JOptionPane.showInputDialog(this, "Enter your name").trim();
 					setTitle(name);
 					out.writeUTF(name);
+				} else if (input.equals("[PICTURE]")) {
+					int length = in.readInt();
+					byte[] bytes = new byte[length];
+					in.readFully(bytes, 0, length);
+					BufferedImage b = ImageIO.read(new ByteArrayInputStream(bytes));
 				} else {
 					try {
 						doc.insertString(doc.getLength(), decryptMessage(input) + "\n", style2);
@@ -160,10 +170,9 @@ public class Client extends JFrame{
 					}
 				}
 			} catch (IOException ioe) {
-				//ioe.printStackTrace();
 				JOptionPane.showMessageDialog(this, "Error with server. Try again later.");
 				System.exit(1);
-			} catch (NullPointerException he) { 
+			} catch (NullPointerException npe) { 
 				// close application if user did not enter name
 				System.exit(1);
 			}
