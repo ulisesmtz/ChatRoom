@@ -1,4 +1,7 @@
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -8,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.net.Socket;
 
@@ -22,6 +26,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
 import javax.swing.text.Style;
@@ -36,8 +41,8 @@ public class Client extends JFrame{
 
 	private JPanel p = new JPanel();           // panel to hold text field and text area
 	private JTextField jtf = new JTextField(); // to input message
-	private JTextPane jta = new JTextPane();  
-	private JButton jb = new JButton("Send");
+	private JTextPane jtp = new JTextPane();  
+	private JButton sendButton = new JButton("Send");
 	private JButton picButton = new JButton("Send a pic!");
 	private Socket socket;
 	private DataInputStream in;
@@ -46,23 +51,26 @@ public class Client extends JFrame{
 	private String name = "";                // name of client
 	private Algorithm alg = new Algorithm(); // to encrypt/decrypt messages
 	private final String key = "<6$b^*%2"; // random key for encryption/decryption (match server's key)
+	private final int MAX_WIDTH = 200, MAX_HEIGHT = 200; // max size of image after resizing
+	private StyledDocument doc = (StyledDocument) jtp.getDocument();
+
 	
 	public Client() {
 		// add gui elements
 		p.setLayout(new BorderLayout());
-		DefaultCaret caret = (DefaultCaret)jta.getCaret();
+		DefaultCaret caret = (DefaultCaret)jtp.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE); // automatically scroll to bottom
 		
 		p.add(new JLabel("Enter text"), BorderLayout.WEST);
 		p.add(jtf, BorderLayout.CENTER);
-		p.add(jb, BorderLayout.EAST);
+		p.add(sendButton, BorderLayout.EAST);
 		p.add(picButton, BorderLayout.AFTER_LAST_LINE);
 		
 		setLayout(new BorderLayout());
 		add(p, BorderLayout.SOUTH);
-		add(new JScrollPane(jta), BorderLayout.CENTER);
+		add(new JScrollPane(jtp), BorderLayout.CENTER);
 		
-		jta.setEditable(false); // client can't edit textpane
+		jtp.setEditable(false); // client can't edit textpane
 		
 
 		setTitle("Client");
@@ -72,11 +80,8 @@ public class Client extends JFrame{
 		
 		
 		//TODO: TEST using styledcdoc
-		final StyledDocument doc = (StyledDocument) jta.getDocument();
-		final Style style = doc.addStyle("Name", null);	
-		final Style style2 = doc.addStyle("Style", null);
-		
-		
+		doc.addStyle("Regular", null);	
+		doc.addStyle("Picture", null);
 		
 		// test algorithms
 		new Algorithm().ECB("a", key, false);
@@ -87,16 +92,16 @@ public class Client extends JFrame{
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				performAction(arg0);
+				sendText(arg0);
 			}
 			
 		});
 		
-		jb.addActionListener(new ActionListener() {
+		sendButton.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				performAction(arg0);
+				sendText(arg0);
 			}
 			
 		});
@@ -106,6 +111,9 @@ public class Client extends JFrame{
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				JFileChooser jfc = new JFileChooser();
+				FileNameExtensionFilter imageFilter = new FileNameExtensionFilter(
+					    "Image files", ImageIO.getReaderFileSuffixes());
+				jfc.setFileFilter(imageFilter);
 				int result = jfc.showOpenDialog(p);
 				if (result == JFileChooser.APPROVE_OPTION) {
 					File file = jfc.getSelectedFile();
@@ -115,8 +123,9 @@ public class Client extends JFrame{
 						 * of bytes and send array to server
 						 */
 						BufferedImage bimg = ImageIO.read(file);
+						bimg = resize(bimg);
 						ByteArrayOutputStream baos = new ByteArrayOutputStream();
-						ImageIO.write(bimg, "png", baos);
+						ImageIO.write(bimg, getFormat(file), baos);
 						byte[] bytes = baos.toByteArray();
 						baos.close();
 						out.writeUTF("[PICTURE]");
@@ -155,49 +164,33 @@ public class Client extends JFrame{
 					int length = in.readInt();
 					byte[] bytes = new byte[length];
 					in.readFully(bytes, 0, length);
-					String n = in.readUTF();
+					String _name = in.readUTF(); // name of client that sent picture
 					BufferedImage b = ImageIO.read(new ByteArrayInputStream(bytes));
+					StyleConstants.setIcon(doc.getStyle("Picture"), new ImageIcon(b));
 					
-					ImageIcon pic = new ImageIcon(b);
-					Image im = pic.getImage();
-					im = im.getScaledInstance(100, 120, Image.SCALE_SMOOTH);
-					pic = new ImageIcon(im);
-					StyleConstants.setIcon(style, pic);
-					try {
-						doc.insertString(doc.getLength(), n + "\n\t", style2);
-						doc.insertString(doc.getLength(), "ignored", style);
-						doc.insertString(doc.getLength(), "\n", style2);
-					} catch (BadLocationException e) {
-						e.printStackTrace();
-					}
+					doc.insertString(doc.getLength(), _name + ":\n\t", doc.getStyle("Regular"));
+					doc.insertString(doc.getLength(), "ignored", doc.getStyle("Picture"));
+					doc.insertString(doc.getLength(), "\n", doc.getStyle("Regular"));
 				} else { // normal text
-					try {
-						doc.insertString(doc.getLength(), decryptMessage(input) + "\n", style2);
-					} catch (BadLocationException e) {
-						e.printStackTrace();
-					}
+					doc.insertString(doc.getLength(), decryptMessage(input) + "\n", doc.getStyle("Regular"));
 				}
+			} catch (BadLocationException ble) { // when using insertString
+				ble.printStackTrace();
 			} catch (IOException ioe) {
 				JOptionPane.showMessageDialog(this, "Error with server. Try again later.");
 				System.exit(1);
 			} catch (NullPointerException npe) { 
 				// close application if user did not enter name
 				System.exit(1);
-			}
-			
-			
-				
-		}
-			
-		
-		
+			}		
+		}		
 	}
 	
 	
 	/**
 	 * @param a the action event
 	 */
-	public void performAction(ActionEvent a) {
+	public void sendText(ActionEvent a) {
 		try {
 			String msg = jtf.getText().trim();
 			
@@ -229,6 +222,74 @@ public class Client extends JFrame{
 	private String decryptMessage(String m) {
 		int[] temp = alg.ECB(m, key, true);
 		return alg.convertToString(temp);
+	}
+	
+	/**
+	 * Gets the extension of a file
+	 * @param file the (image) file to be checked for its extension
+	 * @return extension of image (jpg, png, etc)
+	 */
+	private String getFormat(File file) {
+		String name = file.getName().toLowerCase();
+		if (name.endsWith(".png"))
+			return "png";
+		else if (name.endsWith(".jpg")) 
+			return "jpg";
+		else if (name.endsWith(".bmp"))
+			return "bmp";
+		else if (name.endsWith(".gif"))
+			return "gif";
+		else 
+			return "Unknown";
+	}
+	
+	/**
+	 * Gets dimensions of soon to be resized image
+	 * @param bWidth boundary width
+	 * @param bHeight boundary height
+	 * @param iWidth image width
+	 * @param iHeight image height
+	 * @return new width and height of image in form of dimension
+	 */
+	private Dimension getScaledDimension (int bWidth, int bHeight, int iWidth, int iHeight) {
+		int newWidth = iWidth;
+		int newHeight = iHeight;
+		
+		if (iWidth > bWidth) {
+			newWidth = bWidth;
+			newHeight = (newWidth * iHeight) / iWidth;
+		}
+		
+		if (iHeight > bHeight) {
+			newHeight = bHeight;
+			newWidth = (newHeight * iWidth) / iHeight;
+		}
+		
+		return new Dimension(newWidth, newHeight);
+	}
+	
+	/**
+	 * Resizes a bufferedimage while maintaining aspect ratio
+	 * @param bimg the bufferedimage to be resized
+	 * @return new resized bufferedimage 
+	 */
+	private BufferedImage resize(BufferedImage bimg) {
+		// grab new dimensions
+		Dimension d = getScaledDimension(MAX_WIDTH, MAX_HEIGHT, 
+				bimg.getWidth(), bimg.getHeight());
+		
+		// rescale
+		Image img = new ImageIcon(bimg).getImage().getScaledInstance( (int)d.getWidth(),
+				(int)d.getHeight(), Image.SCALE_SMOOTH);
+		
+		// convert image to bufferedimage using graphics
+		BufferedImage bufferedImage = new BufferedImage(img.getWidth(null), img.getHeight(null),
+		        BufferedImage.TYPE_INT_RGB);
+
+	    Graphics g = bufferedImage.createGraphics();
+	    g.drawImage(img, 0, 0, null);
+	    g.dispose();
+	    return bufferedImage;
 	}
 	
 	

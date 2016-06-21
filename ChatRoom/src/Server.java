@@ -83,16 +83,14 @@ public class Server extends JFrame{
 	class ThreadedClient extends Thread {
 		private Socket socket;
 		private String name;
-		
+		private DataInputStream in;
+		private DataOutputStream out;
 		public ThreadedClient(Socket socket) {
 			this.socket = socket;
 		}
 		
 		@Override
-		public void run() {
-			DataInputStream in = null;
-			DataOutputStream out = null;
-			
+		public void run() {			
 			try {
 				// instantiate input and output stream
 				in = new DataInputStream(socket.getInputStream());
@@ -128,7 +126,7 @@ public class Server extends JFrame{
 						byte[] bytes = new byte[length];
 						in.readFully(bytes, 0, length);
 
-						jta.append("image received from " + name + "\n");
+						jta.append("Image received from " + name + "\n");
 						for (DataOutputStream d : outs) {
 							d.writeUTF("[PICTURE]");
 							d.writeInt(length);
@@ -151,8 +149,8 @@ public class Server extends JFrame{
 				// display that the user has disconnected, remove name and output stream 
 				// for that user and clean up
 				if (name != null) { // in case user does not enter name and exits JOptionPane
-					jta.append(name + " has disconnected\n");
-					printToAll(name + " has disconnceted");
+					jta.append(name + " has disconnected at " + new Date() + "\n");
+					printToAll(name + " has disconnceted at " + new Date());
 				}
 				names.remove(name);
 				outs.remove(out);
@@ -198,9 +196,7 @@ public class Server extends JFrame{
 			int c[] = alg.ECB(m, key, false);
 			return alg.convertToString(c);
 		}
-		
-		
-		
+	
 	}
 	
 	public static void main(String[] args) {
