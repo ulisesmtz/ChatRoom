@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -24,7 +25,7 @@ public class Server extends JFrame{
 	private final int PORT_NO = 8888;
 	
 	// to hold all of the names of users online
-	private ArrayList<String> names = new ArrayList<String>();
+	private List<String> names = new ArrayList<String>();
 	
 	// hold every dataoutputstream for broadcasting
 	private ArrayList<DataOutputStream> outs = new ArrayList<DataOutputStream>();
@@ -33,7 +34,7 @@ public class Server extends JFrame{
 	
 	private Algorithm alg = new Algorithm(); // to decrypt/encrypt messages
 	private final String key = "<6$b^*%2"; // random key for encryption/decryption (match client's key)
-	
+		
 	public Server() {
 		// set up gui components
 		setLayout(new BorderLayout());
@@ -133,6 +134,15 @@ public class Server extends JFrame{
 							d.write(bytes, 0, length);
 							d.writeUTF(name);
 						}
+					} else if (input.equals("[LIST]")) {
+						for (DataOutputStream d : outs) {
+							d.writeUTF("[LIST]");
+							d.writeInt(names.size());
+							for (String n : names) {
+								d.writeUTF(n);
+				//				System.out.println(n);
+							}
+						}						
 					} else {
 						input = decryptMessage(input);
 						

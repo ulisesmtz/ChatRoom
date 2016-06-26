@@ -13,6 +13,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Random;
 
 import javax.imageio.ImageIO;
@@ -27,6 +29,7 @@ import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultCaret;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 
@@ -43,75 +46,118 @@ public class Chat {
 	private DataOutputStream out;
 	private String tabName;
 	private JTabbedPane jtb;
-	public Chat(final JTabbedPane jtb, String tabName, final DataOutputStream out) {
-		this.jtb = jtb;
+	private Client client;
+	private DataOutputStream getDos() {
+		return out;
+	}
+	
+	public Chat(Client client, String tabName) {
+		this.client = client;
 		this.tabName = tabName;
-		this.out = out;
-		this.jtb.addTab(tabName, createInnerPanel());
+		out = client.getDos();
+		jtb = client.getTabbedPane();
 
+		jtb.addTab(this.tabName, createInnerPanel());
+		
+		DefaultCaret caret = (DefaultCaret)jtp.getCaret();
+		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE); // automatically scroll to bottom
+		
 		jtp.setEditable(false);
 		
 		doc.addStyle("Regular", null);	
 		doc.addStyle("Picture", null);
 		
-//		jtf.addActionListener(new ActionListener() {
-//
-//			@Override
-//			public void actionPerformed(ActionEvent arg0) {
-//				sendText(arg0);
-//			}
-//			
-//		});
-//		
-//		sendButton.addActionListener(new ActionListener() {
-//
-//			@Override
-//			public void actionPerformed(ActionEvent arg0) {
-//				sendText(arg0);
-//			}
-//			
-//		});
-//		
-//		sendPicButton.addActionListener(new ActionListener() {
-//
-//			@Override
-//			public void actionPerformed(ActionEvent arg0) {
-//				JFileChooser jfc = new JFileChooser();
-//				FileNameExtensionFilter imageFilter = new FileNameExtensionFilter(
-//					    "Image files", ImageIO.getReaderFileSuffixes());
-//				jfc.setFileFilter(imageFilter);
-//				int result = jfc.showOpenDialog(null);
-//				if (result == JFileChooser.APPROVE_OPTION) {
-//					File file = jfc.getSelectedFile();
-//					try {
-//						/*
-//						 * Get bufferedimage from file, convert it into array
-//						 * of bytes and send array to server
-//						 */
-//						BufferedImage bimg = ImageIO.read(file);
-//						bimg = resize(bimg);
-//						ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//						ImageIO.write(bimg, getFormat(file), baos);
-//						byte[] bytes = baos.toByteArray();
-//						baos.close();
-//						out.writeUTF("[PICTURE]");
-//						out.writeInt(bytes.length);
-//						out.write(bytes);
-//					} catch (IOException e) {
-//						e.printStackTrace();
-//					}
-//				}
-//			}
-//			
-//		});
-//		
+		jtf.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				sendText(arg0);
+			}
+			
+		});
+		
+		sendButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				sendText(arg0);
+			}
+			
+		});
+		
+		sendPicButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				JFileChooser jfc = new JFileChooser();
+				FileNameExtensionFilter imageFilter = new FileNameExtensionFilter(
+					    "Image files", ImageIO.getReaderFileSuffixes());
+				jfc.setFileFilter(imageFilter);
+				int result = jfc.showOpenDialog(jtb);
+				if (result == JFileChooser.APPROVE_OPTION) {
+					File file = jfc.getSelectedFile();
+					try {
+						/*
+						 * Get bufferedimage from file, convert it into array
+						 * of bytes and send array to server
+						 */
+						BufferedImage bimg = ImageIO.read(file);
+						bimg = resize(bimg);
+						ByteArrayOutputStream baos = new ByteArrayOutputStream();
+						ImageIO.write(bimg, getFormat(file), baos);
+						byte[] bytes = baos.toByteArray();
+						baos.close();
+						getDos().writeUTF("[PICTURE]");
+						getDos().writeInt(bytes.length);
+						getDos().write(bytes);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			
+		});
+		
 		
 		privateChatButton.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				new Chat(jtb, "Hello" + new Random().nextInt(), out);
-				jtb.setSelectedIndex(jtb.getTabCount()-1);
+				try {
+					getDos().writeUTF("[LIST]");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				while (getClient().getDone() == false) {
+					// wait until server finishes sending all names to client 
+					// and client will set done to true
+				}
+				
+
+				getClient().setDone(false);
+				System.out.println("Names in chat: "  + getClient().getNames().size());
+
+				String choice = (String) JOptionPane.showInputDialog(
+				                    jtb,
+				                    "With who would you like to start a private chat?",
+				                    "Private chat starter",
+				                    JOptionPane.PLAIN_MESSAGE,
+				                    null,
+				                    getClient().getNames().toArray(new String[getClient().getNames().size()]),
+				                    "");
+				
+				if (choice == null) {
+					return;
+				}
+				
+				int tab = isTabOpen(choice);
+				if (tab != -1) {   // tab exists, so switch to that tab
+					jtb.setSelectedIndex(tab);
+				} else {  // create new chat and open that tab
+					getClient().getChats().add(new Chat(getClient(), choice));
+					jtb.setSelectedIndex(jtb.getTabCount() - 1);
+				}
+				
 			}
 			
 		});
@@ -120,6 +166,7 @@ public class Chat {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				getClient().getChats().remove(jtb.getSelectedIndex());
 				jtb.removeTabAt(jtb.getSelectedIndex());
 				
 			}
@@ -159,33 +206,34 @@ public class Chat {
 	}
 	
 	/**
+	 * Sends text in text field to the server
 	 * @param a the action event
 	 */
-//	private void sendText(ActionEvent a) {
-//		try {
-//			String msg = jtf.getText().trim();
-//			
-//			if (!msg.isEmpty()) {
-//				out.writeUTF(encryptMessage(msg));
-//				out.flush();	
-//			}	
-//			
-//			jtf.setText(""); // reset text field
-//
-//		} catch (IOException ioe) {
-//			ioe.printStackTrace();
-//		}
-//	}
+	private void sendText(ActionEvent a) {
+		try {
+			String msg = jtf.getText().trim();
+			
+			if (!msg.isEmpty()) {
+				out.writeUTF(encryptMessage(msg));
+				out.flush();	
+			}	
+			
+			jtf.setText(""); // reset text field
+
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+		} 
+	}
 	
 	/**
 	 * @param m the message to be encrypted
 	 * @return encrypted String
 	 */
-//	private String encryptMessage(String m) {
-//		int[] temp = alg.ECB(m, key, false);
-//		return alg.convertToString(temp);
-//	}
-//	
+	private String encryptMessage(String m) {
+		int[] temp = new Algorithm().ECB(m, "<6$b^*%2", false);
+		return new Algorithm().convertToString(temp);
+	}
+	
 //	/**
 //	 * @param m the message to be decrypted
 //	 * @return decrypted String
@@ -244,28 +292,45 @@ public class Chat {
 	 * @param bimg the bufferedimage to be resized
 	 * @return new resized bufferedimage 
 	 */
-//	private BufferedImage resize(BufferedImage bimg) {
-//		// grab new dimensions
-//		Dimension d = getScaledDimension(MAX_WIDTH, MAX_HEIGHT, 
-//				bimg.getWidth(), bimg.getHeight());
-//		
-//		// rescale
-//		Image img = new ImageIcon(bimg).getImage().getScaledInstance( (int)d.getWidth(),
-//				(int)d.getHeight(), Image.SCALE_SMOOTH);
-//		
-//		// convert image to bufferedimage using graphics
-//		BufferedImage bufferedImage = new BufferedImage(img.getWidth(null), img.getHeight(null),
-//		        BufferedImage.TYPE_INT_RGB);
-//
-//	    Graphics g = bufferedImage.createGraphics();
-//	    g.drawImage(img, 0, 0, null);
-//	    g.dispose();
-//	    return bufferedImage;
-//	}
+	private BufferedImage resize(BufferedImage bimg) {
+		// grab new dimensions
+		Dimension d = getScaledDimension(200, 200, 
+				bimg.getWidth(), bimg.getHeight());
+		
+		// rescale
+		Image img = new ImageIcon(bimg).getImage().getScaledInstance( (int)d.getWidth(),
+				(int)d.getHeight(), Image.SCALE_SMOOTH);
+		
+		// convert image to bufferedimage using graphics
+		BufferedImage bufferedImage = new BufferedImage(img.getWidth(null), img.getHeight(null),
+		        BufferedImage.TYPE_INT_RGB);
+
+	    Graphics g = bufferedImage.createGraphics();
+	    g.drawImage(img, 0, 0, null);
+	    g.dispose();
+	    return bufferedImage;
+	}
 	
 	
 	public String getTabName() {
 		return tabName;
+	}
+	
+	public StyledDocument getStyledDoc() {
+		return doc;
+	}
+	
+	private int isTabOpen(String s) {
+		int size = jtb.getTabCount();
+		for (int i = 0; i < size; i++) {
+			if (jtb.getTitleAt(i).equals(s))
+				return i;
+		}
+		return -1;
+	}
+	
+	private Client getClient() {
+		return client;
 	}
 
 }
