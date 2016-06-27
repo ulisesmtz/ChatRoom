@@ -1,18 +1,9 @@
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics;
 import java.awt.GridLayout;
-import java.awt.Image;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -20,22 +11,13 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
-import javax.swing.JTextField;
-import javax.swing.JTextPane;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.BadLocationException;
-import javax.swing.text.DefaultCaret;
-import javax.swing.text.Style;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 
@@ -59,35 +41,9 @@ public class Client extends JFrame{
 	private int currentTab = 0;
 	private List<Chat> chats = new ArrayList<Chat>();
 	private List<String> names = new ArrayList<String>();
-	
-	List<String> getNames() {
-		return names;
-	}
-	
-	List<Chat> getChats() {
-		return chats;
-	}
-	
-	
-	
 	private boolean isDone = false;
+
 	
-	boolean getDone() {
-		return isDone;
-	}
-	
-	void setDone(boolean choice) {
-		isDone = choice;
-	}
-	
-	DataOutputStream getDos() {
-		return out;
-	
-	}
-	
-	JTabbedPane getTabbedPane() {
-		return tabbedPane;
-	}
 	public Client() {
 		
 		tabbedPanePanel.setLayout(new GridLayout(1,1));
@@ -130,19 +86,34 @@ public class Client extends JFrame{
 			System.exit(1);
 		}
 		
-		//chats.add(new Chat(tabbedPane, "Global", out, this));
 		chats.add(new Chat(this, "Global"));
 		
+		// keep asking for user name until server accepts the unique name
+		try {
+			String s = in.readUTF();
+			while (!s.equals("[ACCEPTED]")) {
+				name = JOptionPane.showInputDialog(this, "Enter your name").trim();
+				out.writeUTF(name);	
+				s = in.readUTF();
+			}
+			
+		} catch (IOException e) {
+			JOptionPane.showMessageDialog(this, "Error with server. Try again later.");
+			System.exit(1);
+		} catch (NullPointerException npe) {
+			// close application if user did not enter name
+			System.exit(1);
+		}
+		
+
+		setTitle(name);
+
 		while (true) {
 			try {
 				String input = in.readUTF();
 				//TODO: fix line under
 				StyledDocument doc = chats.get(currentTab).getStyledDoc();
-				if (input.equals("[NAME]")) {
-					name = JOptionPane.showInputDialog(this, "Enter your name").trim();
-					setTitle(name);
-					out.writeUTF(name);
-				} else if (input.equals("[PICTURE]")) { // image received
+				if (input.equals("[PICTURE]")) { // image received
 					/*
 					 * Make array of bytes and get bytes from image.
 					 * Convert array to actual image and display image
@@ -176,10 +147,7 @@ public class Client extends JFrame{
 			} catch (IOException ioe) {
 				JOptionPane.showMessageDialog(this, "Error with server. Try again later.");
 				System.exit(1);
-			} catch (NullPointerException npe) { 
-				// close application if user did not enter name
-				System.exit(1);
-			}		
+			} 	
 		}		
 	}
 	
@@ -203,10 +171,36 @@ public class Client extends JFrame{
 		return alg.convertToString(temp);
 	}
 	
+	// getters and setters methods...
+	
+	public List<String> getNames() {
+		return names;
+	}
+	
+	public List<Chat> getChats() {
+		return chats;
+	}
+		
+	public boolean getDone() {
+		return isDone;
+	}
+	
+	public void setDone(boolean choice) {
+		isDone = choice;
+	}
+	
+	public DataOutputStream getDos() {
+		return out;
+	
+	}
+	
+	public JTabbedPane getTabbedPane() {
+		return tabbedPane;
+	}
+	
 
 		
 	public static void main(String[] args) {
 		new Client();
 	}
  }
-

@@ -1,5 +1,4 @@
 import java.awt.BorderLayout;
-import java.awt.image.BufferedImage;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -9,7 +8,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -106,6 +104,7 @@ public class Server extends JFrame{
 						synchronized (names) {  // thread safe
 							if (!names.contains(name)) {
 								names.add(name);
+								out.writeUTF("[ACCEPTED]");
 								break;
 							}
 						}
