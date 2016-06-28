@@ -24,8 +24,8 @@ import javax.swing.text.StyledDocument;
  * @author UlisesM
  */
 public class Client extends JFrame{
-boolean serverDown;
-	private JPanel p = new JPanel();           // panel to hold text field and text area
+	
+	private JPanel panel = new JPanel();           // panel to hold text field and text area
 	private Socket socket;
 	private DataInputStream in;
 	private DataOutputStream out;
@@ -33,12 +33,11 @@ boolean serverDown;
 	private String name = "";                // name of client
 	private Algorithm alg = new Algorithm(); // to encrypt/decrypt messages
 	private final String key = "<6$b^*%2"; // random key for encryption/decryption (match server's key)
-	private final int MAX_WIDTH = 200, MAX_HEIGHT = 200; // max size of image after resizing
 	private JTabbedPane tabbedPane = new JTabbedPane();
 	private JPanel tabbedPanePanel = new JPanel();
-	private List<Chat> chats = new ArrayList<Chat>();
-	private List<String> names = new ArrayList<String>();
-	private boolean isDone = false;
+	private List<Chat> chats = new ArrayList<Chat>();     // all chats open in the client
+	private List<String> names = new ArrayList<String>(); // all users that are online
+	private boolean isDone = false;  // used to check if server is done writing list of names to client
 
 	
 	public Client() {
@@ -47,7 +46,7 @@ boolean serverDown;
 		tabbedPanePanel.add(tabbedPane);
 
 		// add gui elements
-		p.setLayout(new BorderLayout());
+		panel.setLayout(new BorderLayout());
 		
 		setLayout(new BorderLayout());	
 		add(tabbedPanePanel, BorderLayout.CENTER);
@@ -95,10 +94,11 @@ boolean serverDown;
 		setTitle(name);
 
 		while (true) {
+			StyledDocument doc; // holds the styleddocument to append text/image
+
 			try {
 				String input = in.readUTF();
 
-				StyledDocument doc;
 				if (input.equals("[PICTURE]")) { // image received
 					/*
 					 * Make array of bytes and get bytes from image.
@@ -107,75 +107,37 @@ boolean serverDown;
 					int length = in.readInt();
 					byte[] bytes = new byte[length];
 					in.readFully(bytes, 0, length);
-					String _name = in.readUTF(); // name of client that sent picture
-					String t = in.readUTF();
-					if (name.equals(_name)) { // sender is receiving its own copy
-						doc = chats.get(tabbedPane.getSelectedIndex()).getStyledDoc(); // TODO: change it
-					} else if (t.equals("Global")) {
-						doc = chats.get(0).getStyledDoc();
-					} else {
-	
-						int index = -1;
-						int size = tabbedPane.getTabCount();
-						for (int i = 0; i < size; i++) {
-							if (tabbedPane.getTitleAt(i).equals(_name)) {
-								index = i;
-							}
-						}
-						
-						if (index != -1) {
-							doc = chats.get(index).getStyledDoc();
-						} else {
-							Chat c = new Chat(this, _name);
-							chats.add(c);
-							doc = c.getStyledDoc();
-						}
-					}
+					String fromWho = in.readUTF(); // name of client that sent picture
+					String tab = in.readUTF();
+
+					doc = getStyledDocument(fromWho, tab);
 					
 					
 					BufferedImage b = ImageIO.read(new ByteArrayInputStream(bytes));
 					StyleConstants.setIcon(doc.getStyle("Picture"), new ImageIcon(b));
 					
-					doc.insertString(doc.getLength(), _name + ":\n\t", doc.getStyle("Regular"));
+					doc.insertString(doc.getLength(), fromWho + ":\n\t", doc.getStyle("Regular"));
 					doc.insertString(doc.getLength(), "ignored", doc.getStyle("Picture"));
 					doc.insertString(doc.getLength(), "\n", doc.getStyle("Regular"));
 					
 				} else if (input.equals("[LIST]")) {
+					// get size of array, add all names in list and remove client's own name
 					int size = in.readInt();
 					names.clear();
 					
-					for (int i = 0; i < size; i++) {
+					for (int i = 0; i < size; i++) 
 						names.add(in.readUTF());
-					}
+					
 					names.remove(name); // remove own client's name from list
 					isDone = true;
 					
 				} else { // normal text
 					input = decryptMessage(input);
 					String fromWho = in.readUTF();
-					String t = in.readUTF();
-					if (name.equals(fromWho)) { // sender is receiving its own copy
-						doc = chats.get(tabbedPane.getSelectedIndex()).getStyledDoc(); //TODO:change it
-					} else if (t.equals("Global")) {
-						doc = chats.get(0).getStyledDoc();
-					} else {
-	
-						int index = -1;
-						int size = tabbedPane.getTabCount();
-						for (int i = 0; i < size; i++) {
-							if (tabbedPane.getTitleAt(i).equals(fromWho)) {
-								index = i;
-							}
-						}
-						
-						if (index != -1) {
-							doc = chats.get(index).getStyledDoc();
-						} else {
-							Chat c = new Chat(this, fromWho);
-							chats.add(c);
-							doc = c.getStyledDoc();
-						}
-					}
+					String tab = in.readUTF();
+					
+					doc = getStyledDocument(fromWho, tab);
+					
 					doc.insertString(doc.getLength(), fromWho + ": " + input + "\n", doc.getStyle("Regular"));
 				}
 			} catch (BadLocationException ble) { // when using insertString
@@ -205,6 +167,40 @@ boolean serverDown;
 	private String decryptMessage(String m) {
 		int[] temp = alg.ECB(m, key, true);
 		return alg.convertToString(temp);
+	}
+	
+	/**
+	 * Retrieve the correct styleddocument of the client to append the message
+	 * @param fromWho Who sent the message
+	 * @param tab the tab name when sender sent the message
+	 * @return styleddocument to append the message
+	 */
+	private StyledDocument getStyledDocument(String fromWho, String tab) {
+		if (name.equals(fromWho)) {  // sender is receiving its own copy
+			return chats.get(tabbedPane.getSelectedIndex()).getStyledDoc(); 
+			
+		} else if (tab.equals("Global")) { // get styleddocument from first tab
+			return chats.get(0).getStyledDoc();
+			
+		} else {
+			// check to see if tab is already open
+			int index = -1;
+			int size = tabbedPane.getTabCount();
+			for (int i = 0; i < size; i++) {
+				if (tabbedPane.getTitleAt(i).equals(fromWho)) {
+					index = i;
+				}
+			}
+			
+			if (index != -1) { // tab is open
+				return chats.get(index).getStyledDoc();
+				
+			} else { // tab is not open, create new chat and get that styleddocument
+				Chat c = new Chat(this, fromWho);
+				chats.add(c);
+				return c.getStyledDoc();
+			}
+		}
 	}
 	
 	// getters and setters methods...

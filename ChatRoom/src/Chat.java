@@ -27,37 +27,41 @@ import javax.swing.text.DefaultCaret;
 import javax.swing.text.StyledDocument;
 
 
+/**
+ * @author UlisesM
+ *
+ */
 public class Chat {
 	
 	private JButton privateChatButton = new JButton("New private chat");
 	private JButton closeTabButton = new JButton("Close tab");
 	private JButton sendPicButton = new JButton("Send a pic");
 	private JButton sendButton = new JButton("Send");
-	private JTextField jtf = new JTextField(); 
-	private JTextPane jtp = new JTextPane(); 
-	private StyledDocument doc = (StyledDocument) jtp.getDocument();
+	private JTextField textField = new JTextField(); 
+	private JTextPane textPane = new JTextPane(); 
+	private StyledDocument doc = (StyledDocument) textPane.getDocument();
 	private DataOutputStream out;
 	private String tabName;
-	private JTabbedPane jtb;
+	private JTabbedPane tabbedPane;
 	private Client client;
 
 	public Chat(Client client, String tabName) {
 		this.client = client;
 		this.tabName = tabName;
 		out = client.getDos();
-		jtb = client.getTabbedPane();
+		tabbedPane = client.getTabbedPane();
 
-		jtb.addTab(this.tabName, createInnerPanel());
+		tabbedPane.addTab(this.tabName, createInnerPanel());
 		
-		DefaultCaret caret = (DefaultCaret)jtp.getCaret();
+		DefaultCaret caret = (DefaultCaret)textPane.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE); // automatically scroll to bottom
 		
-		jtp.setEditable(false);
+		textPane.setEditable(false);
 		
 		doc.addStyle("Regular", null);	
 		doc.addStyle("Picture", null);
 		
-		jtf.addActionListener(new ActionListener() {
+		textField.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
@@ -83,7 +87,7 @@ public class Chat {
 				FileNameExtensionFilter imageFilter = new FileNameExtensionFilter(
 					    "Image files", ImageIO.getReaderFileSuffixes());
 				jfc.setFileFilter(imageFilter);
-				int result = jfc.showOpenDialog(jtb);
+				int result = jfc.showOpenDialog(tabbedPane);
 				if (result == JFileChooser.APPROVE_OPTION) {
 					File file = jfc.getSelectedFile();
 					try {
@@ -129,7 +133,7 @@ public class Chat {
 				getClient().setDone(false);
 
 				String choice = (String) JOptionPane.showInputDialog(
-				                    jtb,
+				                    tabbedPane,
 				                    "With who would you like to start a private chat?",
 				                    "Private chat starter",
 				                    JOptionPane.PLAIN_MESSAGE,
@@ -143,10 +147,10 @@ public class Chat {
 				
 				int tab = isTabOpen(choice);
 				if (tab != -1) {   // tab exists, so switch to that tab
-					jtb.setSelectedIndex(tab);
+					tabbedPane.setSelectedIndex(tab);
 				} else {  // create new chat and open that tab
 					getClient().getChats().add(new Chat(getClient(), choice));
-					jtb.setSelectedIndex(jtb.getTabCount() - 1);
+					tabbedPane.setSelectedIndex(tabbedPane.getTabCount() - 1);
 				}
 				
 			}
@@ -157,8 +161,8 @@ public class Chat {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				getClient().getChats().remove(jtb.getSelectedIndex());
-				jtb.removeTabAt(jtb.getSelectedIndex());
+				getClient().getChats().remove(tabbedPane.getSelectedIndex());
+				tabbedPane.removeTabAt(tabbedPane.getSelectedIndex());
 				
 			}
 			
@@ -167,6 +171,10 @@ public class Chat {
 	}
 	
 	
+	/**
+	 * Create a new panel with all the buttons and fields for a chat
+	 * @return new JPanel that holds the style for every chat
+	 */
 	private JPanel createInnerPanel() {
 		JPanel mainPanel = new JPanel();
 		JPanel buttonPanel = new JPanel();
@@ -186,12 +194,12 @@ public class Chat {
 			privateChatButton.setEnabled(false);
 		
 		jtfPanel.add(new Label("Enter text"), BorderLayout.WEST);
-		jtfPanel.add(jtf, BorderLayout.CENTER);
+		jtfPanel.add(textField, BorderLayout.CENTER);
 		jtfPanel.add(sendButton, BorderLayout.EAST);
 
 		mainPanel.add(buttonPanel, BorderLayout.NORTH);
 		mainPanel.add(jtfPanel, BorderLayout.SOUTH);
-		mainPanel.add(new JScrollPane(jtp), BorderLayout.CENTER);	
+		mainPanel.add(new JScrollPane(textPane), BorderLayout.CENTER);	
 
 		return mainPanel;
 	}
@@ -202,7 +210,7 @@ public class Chat {
 	 */
 	private void sendText(ActionEvent a) {
 		try {
-			String msg = jtf.getText().trim();
+			String msg = textField.getText().trim();
 			
 			if (!msg.isEmpty()) {
 				out.writeUTF(getTabName());
@@ -210,7 +218,7 @@ public class Chat {
 				out.flush();	
 			}	
 			
-			jtf.setText(""); // reset text field
+			textField.setText(""); // reset text field
 
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
@@ -294,6 +302,21 @@ public class Chat {
 	    return bufferedImage;
 	}
 	
+	/**
+	 * Checks to see if a tab is open 
+	 * @param s the title of the tab
+	 * @return -1 if tab does not exist, else the index at where the tab exists
+	 */
+	private int isTabOpen(String s) {
+		int size = tabbedPane.getTabCount();
+		for (int i = 0; i < size; i++) {
+			if (tabbedPane.getTitleAt(i).equals(s))
+				return i;
+		}
+		return -1;
+	}
+	
+	// getter methods...
 	
 	public String getTabName() {
 		return tabName;
@@ -303,14 +326,6 @@ public class Chat {
 		return doc;
 	}
 	
-	private int isTabOpen(String s) {
-		int size = jtb.getTabCount();
-		for (int i = 0; i < size; i++) {
-			if (jtb.getTitleAt(i).equals(s))
-				return i;
-		}
-		return -1;
-	}
 	
 	private Client getClient() {
 		return client;

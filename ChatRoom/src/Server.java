@@ -123,64 +123,56 @@ public class Server extends JFrame{
 						return;
 					
 					if (input.equals("[PICTURE]")) {
+						// read bytes and store in array
 						int length = in.readInt();
 						byte[] bytes = new byte[length];
 						in.readFully(bytes, 0, length);
 
 						jta.append("Image received from " + name + "\n");
-						if (toWho.equals("Global")) {
-							for (DataOutputStream d : outs) {
-								d.writeUTF("[PICTURE]");
-								d.writeInt(length);
-								d.write(bytes, 0, length);
-								d.writeUTF(name);
-								d.writeUTF(toWho);
-							}
+						
+						if (toWho.equals("Global")) { 
+							// send to everyone
+							for (DataOutputStream d : outs) 
+								sendPicture(d, length, bytes, toWho);
+							
 						} else {
-							out.writeUTF("[PICTURE]");
-							out.writeInt(length);
-							out.write(bytes, 0, length);
-							out.writeUTF(name);
-							out.writeUTF(toWho);
+							// send to sender and recipient
+							sendPicture(out, length, bytes, toWho);
 							
+							// get datatoutputstream of recipient
 							int index = names.indexOf(toWho);
-							DataOutputStream dos = outs.get(index);
+							DataOutputStream d = outs.get(index);
 							
-							dos.writeUTF("[PICTURE]");
-							dos.writeInt(length);
-							dos.write(bytes, 0, length);
-							dos.writeUTF(name);
-							dos.writeUTF(toWho);
+							sendPicture(d, length, bytes, toWho);
 							
 						}
 					} else if (input.equals("[LIST]")) {
+						// write all names in list of names
 						out.writeUTF("[LIST]");
 						out.writeInt(names.size());
-						for (String n : names) {
+						for (String n : names) 
 							out.writeUTF(n);
-						}
+						
 					} else {
+						// normal text
+						
 						input = decryptMessage(input);
 						
 						jta.append(name + ": " + input + "\n");  // for server logging
 												
 						if (toWho.equals("Global")) {
-							for (DataOutputStream d : outs) {
-								d.writeUTF(encryptMessage(input));
-								d.writeUTF(name);
-								d.writeUTF(toWho);
-							}
+							for (DataOutputStream d : outs) 
+								sendText(d, input, toWho);
+							
 						} else {
-							out.writeUTF(encryptMessage(input));
-							out.writeUTF(name);
-							out.writeUTF(toWho);
+							// send to sender and recipient
+							sendText(out, input, toWho);
 							
+							// get dataoutputstream of recipient
 							int index = names.indexOf(toWho);
-							DataOutputStream dos = outs.get(index);
+							DataOutputStream d = outs.get(index);
 							
-							dos.writeUTF(encryptMessage(input));
-							dos.writeUTF(name);
-							dos.writeUTF(toWho);
+							sendText(d, input, toWho);
 						}
 					}
 					
@@ -196,7 +188,6 @@ public class Server extends JFrame{
 					jta.append(name + " has disconnected at " + new Date() + "\n");
 					names.remove(name);
 					outs.remove(out);
-				//	printToAll(name + " has disconnected at " + new Date());
 				}
 				
 				try {
@@ -211,18 +202,6 @@ public class Server extends JFrame{
 			
 		}
 		
-		/**
-		 * @param msg the message to display to all users
-		 * Broadcast encrypted message to all the users
-		 */
-		private void printToAll(String msg) {
-			try {
-				for (DataOutputStream dos : outs) 
-					dos.writeUTF(encryptMessage(msg));
-			} catch (IOException ioe){
-				
-			}
-		}
 		
 		/**
 		 * @param m the message to be decrypted
@@ -240,6 +219,43 @@ public class Server extends JFrame{
 		private String encryptMessage(String m) {
 			int c[] = alg.ECB(m, key, false);
 			return alg.convertToString(c);
+		}
+		
+		/**
+		 * Sends image to client
+		 * @param d dataoutputstream to write picture to
+		 * @param length length of array bytes
+		 * @param bytes array that holds the picture in byte format
+		 * @param toWho recipient of image
+		 */
+		private void sendPicture(DataOutputStream d, int length, byte[] bytes, String toWho) {
+			try {
+				d.writeUTF("[PICTURE]");
+				d.writeInt(length);
+				d.write(bytes, 0, length);
+				d.writeUTF(name);
+				d.writeUTF(toWho);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+		}
+		
+		/**
+		 * Sends text to client
+		 * @param d dataoutputstream to write text to
+		 * @param input the message
+		 * @param toWho recipient of text
+		 */
+		private void sendText(DataOutputStream d, String input, String toWho) {
+			try {
+				d.writeUTF(encryptMessage(input));
+				d.writeUTF(name);
+				d.writeUTF(toWho);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
 		}
 	
 	}
