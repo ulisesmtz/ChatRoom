@@ -100,7 +100,7 @@ public class Server extends JFrame{
 				while (true) {
 					out.writeUTF("[NAME]");
 					name = in.readUTF();
-					if (name != null && !name.isEmpty()) {
+					if (name != null && !name.isEmpty() && !name.equals("Global")) {
 						synchronized (names) {  // thread safe
 							if (!names.contains(name)) {
 								names.add(name);
@@ -113,13 +113,12 @@ public class Server extends JFrame{
 				
 				jta.append(name + " has connected at " + new Date() + "\n");
 				outs.add(out);
-				printToAll(name + " has connected at " + new Date());
 				
 				// infinite loop, get input, decrypt, and display message 
 				while (true) {
 					String toWho = in.readUTF();
-
 					String input = in.readUTF();
+					
 					if (input == null) // if user entered nothing, do nothing
 						return;
 					
@@ -135,12 +134,14 @@ public class Server extends JFrame{
 								d.writeInt(length);
 								d.write(bytes, 0, length);
 								d.writeUTF(name);
+								d.writeUTF(toWho);
 							}
 						} else {
 							out.writeUTF("[PICTURE]");
 							out.writeInt(length);
 							out.write(bytes, 0, length);
 							out.writeUTF(name);
+							out.writeUTF(toWho);
 							
 							int index = names.indexOf(toWho);
 							DataOutputStream dos = outs.get(index);
@@ -149,6 +150,7 @@ public class Server extends JFrame{
 							dos.writeInt(length);
 							dos.write(bytes, 0, length);
 							dos.writeUTF(name);
+							dos.writeUTF(toWho);
 							
 						}
 					} else if (input.equals("[LIST]")) {
@@ -161,7 +163,25 @@ public class Server extends JFrame{
 						input = decryptMessage(input);
 						
 						jta.append(name + ": " + input + "\n");  // for server logging
-	 					printToAll(name + ": " + input);
+												
+						if (toWho.equals("Global")) {
+							for (DataOutputStream d : outs) {
+								d.writeUTF(encryptMessage(input));
+								d.writeUTF(name);
+								d.writeUTF(toWho);
+							}
+						} else {
+							out.writeUTF(encryptMessage(input));
+							out.writeUTF(name);
+							out.writeUTF(toWho);
+							
+							int index = names.indexOf(toWho);
+							DataOutputStream dos = outs.get(index);
+							
+							dos.writeUTF(encryptMessage(input));
+							dos.writeUTF(name);
+							dos.writeUTF(toWho);
+						}
 					}
 					
 					
@@ -174,10 +194,11 @@ public class Server extends JFrame{
 				// for that user and clean up
 				if (name != null) { // in case user does not enter name and exits JOptionPane
 					jta.append(name + " has disconnected at " + new Date() + "\n");
-					printToAll(name + " has disconnected at " + new Date());
+					names.remove(name);
+					outs.remove(out);
+				//	printToAll(name + " has disconnected at " + new Date());
 				}
-				names.remove(name);
-				outs.remove(out);
+				
 				try {
 					out.close();
 					socket.close();

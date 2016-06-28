@@ -15,8 +15,6 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
@@ -26,7 +24,7 @@ import javax.swing.text.StyledDocument;
  * @author UlisesM
  */
 public class Client extends JFrame{
-
+boolean serverDown;
 	private JPanel p = new JPanel();           // panel to hold text field and text area
 	private Socket socket;
 	private DataInputStream in;
@@ -38,7 +36,6 @@ public class Client extends JFrame{
 	private final int MAX_WIDTH = 200, MAX_HEIGHT = 200; // max size of image after resizing
 	private JTabbedPane tabbedPane = new JTabbedPane();
 	private JPanel tabbedPanePanel = new JPanel();
-	private int currentTab = 0;
 	private List<Chat> chats = new ArrayList<Chat>();
 	private List<String> names = new ArrayList<String>();
 	private boolean isDone = false;
@@ -64,17 +61,6 @@ public class Client extends JFrame{
 		// test algorithms
 		new Algorithm().ECB("a", key, false);
 		new Algorithm().ECB("as", key, true);
-		
-		tabbedPane.addChangeListener(new ChangeListener() {
-
-			@Override
-			public void stateChanged(ChangeEvent arg0) {
-				currentTab = tabbedPane.getSelectedIndex();
-				System.out.println(currentTab);
-			}
-			
-		});
-		
 	
 		// try to instantiate socket and input/output stream
 		try {
@@ -111,8 +97,8 @@ public class Client extends JFrame{
 		while (true) {
 			try {
 				String input = in.readUTF();
-				//TODO: fix line under
-				StyledDocument doc = chats.get(currentTab).getStyledDoc();
+
+				StyledDocument doc;
 				if (input.equals("[PICTURE]")) { // image received
 					/*
 					 * Make array of bytes and get bytes from image.
@@ -122,11 +108,11 @@ public class Client extends JFrame{
 					byte[] bytes = new byte[length];
 					in.readFully(bytes, 0, length);
 					String _name = in.readUTF(); // name of client that sent picture
-					System.out.println("_name = (who sent the pic)" + _name);	
-					
+					String t = in.readUTF();
 					if (name.equals(_name)) { // sender is receiving its own copy
-						//doc = chats.get(index).getStyledDoc();
-						doc = chats.get(currentTab).getStyledDoc();
+						doc = chats.get(tabbedPane.getSelectedIndex()).getStyledDoc(); // TODO: change it
+					} else if (t.equals("Global")) {
+						doc = chats.get(0).getStyledDoc();
 					} else {
 	
 						int index = -1;
@@ -165,7 +151,32 @@ public class Client extends JFrame{
 					isDone = true;
 					
 				} else { // normal text
-					doc.insertString(doc.getLength(), decryptMessage(input) + "\n", doc.getStyle("Regular"));
+					input = decryptMessage(input);
+					String fromWho = in.readUTF();
+					String t = in.readUTF();
+					if (name.equals(fromWho)) { // sender is receiving its own copy
+						doc = chats.get(tabbedPane.getSelectedIndex()).getStyledDoc(); //TODO:change it
+					} else if (t.equals("Global")) {
+						doc = chats.get(0).getStyledDoc();
+					} else {
+	
+						int index = -1;
+						int size = tabbedPane.getTabCount();
+						for (int i = 0; i < size; i++) {
+							if (tabbedPane.getTitleAt(i).equals(fromWho)) {
+								index = i;
+							}
+						}
+						
+						if (index != -1) {
+							doc = chats.get(index).getStyledDoc();
+						} else {
+							Chat c = new Chat(this, fromWho);
+							chats.add(c);
+							doc = c.getStyledDoc();
+						}
+					}
+					doc.insertString(doc.getLength(), fromWho + ": " + input + "\n", doc.getStyle("Regular"));
 				}
 			} catch (BadLocationException ble) { // when using insertString
 				ble.printStackTrace();

@@ -41,7 +41,6 @@ public class Chat {
 	private JTabbedPane jtb;
 	private Client client;
 
-	
 	public Chat(Client client, String tabName) {
 		this.client = client;
 		this.tabName = tabName;
@@ -226,16 +225,7 @@ public class Chat {
 		int[] temp = new Algorithm().ECB(m, "<6$b^*%2", false);
 		return new Algorithm().convertToString(temp);
 	}
-	
-//	/**
-//	 * @param m the message to be decrypted
-//	 * @return decrypted String
-//	 */
-//	private String decryptMessage(String m) {
-//		int[] temp = alg.ECB(m, key, true);
-//		return alg.convertToString(temp);
-//	}
-//	
+
 	/**
 	 * Gets the extension of a file
 	 * @param file the (image) file to be checked for its extension
