@@ -117,6 +117,8 @@ public class Server extends JFrame{
 				
 				// infinite loop, get input, decrypt, and display message 
 				while (true) {
+					String toWho = in.readUTF();
+
 					String input = in.readUTF();
 					if (input == null) // if user entered nothing, do nothing
 						return;
@@ -127,21 +129,34 @@ public class Server extends JFrame{
 						in.readFully(bytes, 0, length);
 
 						jta.append("Image received from " + name + "\n");
-						for (DataOutputStream d : outs) {
-							d.writeUTF("[PICTURE]");
-							d.writeInt(length);
-							d.write(bytes, 0, length);
-							d.writeUTF(name);
+						if (toWho.equals("Global")) {
+							for (DataOutputStream d : outs) {
+								d.writeUTF("[PICTURE]");
+								d.writeInt(length);
+								d.write(bytes, 0, length);
+								d.writeUTF(name);
+							}
+						} else {
+							out.writeUTF("[PICTURE]");
+							out.writeInt(length);
+							out.write(bytes, 0, length);
+							out.writeUTF(name);
+							
+							int index = names.indexOf(toWho);
+							DataOutputStream dos = outs.get(index);
+							
+							dos.writeUTF("[PICTURE]");
+							dos.writeInt(length);
+							dos.write(bytes, 0, length);
+							dos.writeUTF(name);
+							
 						}
 					} else if (input.equals("[LIST]")) {
-						for (DataOutputStream d : outs) {
-							d.writeUTF("[LIST]");
-							d.writeInt(names.size());
-							for (String n : names) {
-								d.writeUTF(n);
-				//				System.out.println(n);
-							}
-						}						
+						out.writeUTF("[LIST]");
+						out.writeInt(names.size());
+						for (String n : names) {
+							out.writeUTF(n);
+						}
 					} else {
 						input = decryptMessage(input);
 						
@@ -159,7 +174,7 @@ public class Server extends JFrame{
 				// for that user and clean up
 				if (name != null) { // in case user does not enter name and exits JOptionPane
 					jta.append(name + " has disconnected at " + new Date() + "\n");
-					printToAll(name + " has disconnceted at " + new Date());
+					printToAll(name + " has disconnected at " + new Date());
 				}
 				names.remove(name);
 				outs.remove(out);

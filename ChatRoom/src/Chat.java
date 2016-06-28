@@ -40,9 +40,7 @@ public class Chat {
 	private String tabName;
 	private JTabbedPane jtb;
 	private Client client;
-	private DataOutputStream getDos() {
-		return out;
-	}
+
 	
 	public Chat(Client client, String tabName) {
 		this.client = client;
@@ -100,6 +98,7 @@ public class Chat {
 						ImageIO.write(bimg, getFormat(file), baos);
 						byte[] bytes = baos.toByteArray();
 						baos.close();
+						getDos().writeUTF(getTabName());
 						getDos().writeUTF("[PICTURE]");
 						getDos().writeInt(bytes.length);
 						getDos().write(bytes);
@@ -117,6 +116,7 @@ public class Chat {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				try {
+					getDos().writeUTF(getTabName());
 					getDos().writeUTF("[LIST]");
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -128,7 +128,6 @@ public class Chat {
 				
 
 				getClient().setDone(false);
-				System.out.println("Names in chat: "  + getClient().getNames().size());
 
 				String choice = (String) JOptionPane.showInputDialog(
 				                    jtb,
@@ -207,6 +206,7 @@ public class Chat {
 			String msg = jtf.getText().trim();
 			
 			if (!msg.isEmpty()) {
+				out.writeUTF(getTabName());
 				out.writeUTF(encryptMessage(msg));
 				out.flush();	
 			}	
@@ -324,6 +324,10 @@ public class Chat {
 	
 	private Client getClient() {
 		return client;
+	}
+	
+	private DataOutputStream getDos() {
+		return out;
 	}
 
 }

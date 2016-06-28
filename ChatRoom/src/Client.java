@@ -122,6 +122,31 @@ public class Client extends JFrame{
 					byte[] bytes = new byte[length];
 					in.readFully(bytes, 0, length);
 					String _name = in.readUTF(); // name of client that sent picture
+					System.out.println("_name = (who sent the pic)" + _name);	
+					
+					if (name.equals(_name)) { // sender is receiving its own copy
+						//doc = chats.get(index).getStyledDoc();
+						doc = chats.get(currentTab).getStyledDoc();
+					} else {
+	
+						int index = -1;
+						int size = tabbedPane.getTabCount();
+						for (int i = 0; i < size; i++) {
+							if (tabbedPane.getTitleAt(i).equals(_name)) {
+								index = i;
+							}
+						}
+						
+						if (index != -1) {
+							doc = chats.get(index).getStyledDoc();
+						} else {
+							Chat c = new Chat(this, _name);
+							chats.add(c);
+							doc = c.getStyledDoc();
+						}
+					}
+					
+					
 					BufferedImage b = ImageIO.read(new ByteArrayInputStream(bytes));
 					StyleConstants.setIcon(doc.getStyle("Picture"), new ImageIcon(b));
 					
