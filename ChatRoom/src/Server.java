@@ -1,4 +1,6 @@
 import java.awt.BorderLayout;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -8,10 +10,15 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
+import javax.swing.JTextPane;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 
 
 /**
@@ -19,7 +26,7 @@ import javax.swing.text.DefaultCaret;
  */
 public class Server extends JFrame{
 	
-	private JTextArea jta = new JTextArea();
+	private JTextPane textPane = new JTextPane();
 	private final int PORT_NO = 8888;
 	
 	// to hold all of the names of users online
@@ -32,20 +39,26 @@ public class Server extends JFrame{
 	
 	private Algorithm alg = new Algorithm(); // to decrypt/encrypt messages
 	private final String key = "<6$b^*%2"; // random key for encryption/decryption (match client's key)
+	
+	private StyledDocument doc = (StyledDocument) textPane.getDocument();
+
 		
 	public Server() {
 		// set up gui components
 		setLayout(new BorderLayout());
 		
-		DefaultCaret caret = (DefaultCaret)jta.getCaret();
+		DefaultCaret caret = (DefaultCaret)textPane.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE); // automatically scroll to bottom
 		 
-		add(new JScrollPane(jta), BorderLayout.CENTER);
-		jta.setEditable(false); // user can't edit info
+		add(new JScrollPane(textPane), BorderLayout.CENTER);
+		textPane.setEditable(false); // user can't edit info
 		setTitle("Server");
 		setSize(500, 300);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setVisible(true);
+		
+		doc.addStyle("Regular", null);	
+		doc.addStyle("Picture", null);
 		
 		// test algorithm
 		new Algorithm().ECB("HI", key, false);
@@ -55,7 +68,9 @@ public class Server extends JFrame{
 		try {
 			// create socket with PORT_NO
 			serverSocket = new ServerSocket(PORT_NO);
-			jta.append("Server started at " + new Date() + "\n"); // display date when server starts
+			
+			doc.insertString(doc.getLength(), "Server started at " + new Date() + "\n", doc.getStyle("Regular"));
+			
 			while (true) {
 				// accept all clients and give each their own thread to run
 				Socket socket = serverSocket.accept();
@@ -66,6 +81,8 @@ public class Server extends JFrame{
 			
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
+		} catch (BadLocationException ble) {
+			ble.printStackTrace();
 		} finally {
 			try {
 				serverSocket.close();
@@ -111,13 +128,13 @@ public class Server extends JFrame{
 					}
 				}
 				
-				jta.append(name + " has connected at " + new Date() + "\n");
+				doc.insertString(doc.getLength(), name + " has connected at " + new Date( )+ "\n", doc.getStyle("Regular"));
 				outs.add(out);
 				
 				// infinite loop, get input, decrypt, and display message 
 				while (true) {
-					String toWho = in.readUTF();
-					String input = in.readUTF();
+					String toWho = in.readUTF(); // recipient
+					String input = in.readUTF(); // what command (eg [PICTURE], [LIST])
 					
 					if (input == null) // if user entered nothing, do nothing
 						return;
@@ -128,7 +145,13 @@ public class Server extends JFrame{
 						byte[] bytes = new byte[length];
 						in.readFully(bytes, 0, length);
 
-						jta.append("Image received from " + name + "\n");
+						// display image in server
+						BufferedImage b = ImageIO.read(new ByteArrayInputStream(bytes));
+						StyleConstants.setIcon(doc.getStyle("Picture"), new ImageIcon(b));
+						
+						doc.insertString(doc.getLength(), name + ":\n\t", doc.getStyle("Regular"));
+						doc.insertString(doc.getLength(), "ignored", doc.getStyle("Picture"));
+						doc.insertString(doc.getLength(), "\n", doc.getStyle("Regular"));
 						
 						if (toWho.equals("Global")) { 
 							// send to everyone
@@ -158,8 +181,8 @@ public class Server extends JFrame{
 						
 						input = decryptMessage(input);
 						
-						jta.append(name + ": " + input + "\n");  // for server logging
-												
+						doc.insertString(doc.getLength(), name + ": " + input + "\n", doc.getStyle("Regular"));
+					
 						if (toWho.equals("Global")) {
 							for (DataOutputStream d : outs) 
 								sendText(d, input, toWho);
@@ -181,11 +204,17 @@ public class Server extends JFrame{
 				
 			} catch (IOException ioe) {
 				//ioe.printStackTrace();
+			} catch (BadLocationException ble) {
+				ble.printStackTrace();
 			} finally {
 				// display that the user has disconnected, remove name and output stream 
 				// for that user and clean up
 				if (name != null) { // in case user does not enter name and exits JOptionPane
-					jta.append(name + " has disconnected at " + new Date() + "\n");
+					try {
+						doc.insertString(doc.getLength(), name + " has disconnected at " + new Date() + "\n", doc.getStyle("Regular"));
+					} catch (BadLocationException e) {
+						e.printStackTrace();
+					}
 					names.remove(name);
 					outs.remove(out);
 				}
