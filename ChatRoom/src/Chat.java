@@ -28,10 +28,13 @@ import javax.swing.text.StyledDocument;
 
 
 /**
+ * Chat class is responsible for the look of every chat and what to do
+ * when a button is pressed. All chats will have the same functionality 
+ * except for Global chat where it is not possible to close that tab and
+ * every new private chat must be initiated from the Global chat tab.
  * @author UlisesM
- *
  */
-public class Chat {
+public class Chat extends ServerClient{
 	
 	private JButton privateChatButton = new JButton("New private chat");
 	private JButton closeTabButton = new JButton("Close tab");
@@ -161,6 +164,7 @@ public class Chat {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				// remove chat and tab
 				getClient().getChats().remove(tabbedPane.getSelectedIndex());
 				tabbedPane.removeTabAt(tabbedPane.getSelectedIndex());
 				
@@ -188,6 +192,7 @@ public class Chat {
 		buttonPanel.add(closeTabButton);
 		buttonPanel.add(sendPicButton);
 		
+		// can only create private chat in global tab and can't close global chat tab
 		if (tabName.equals("Global"))
 			closeTabButton.setEnabled(false);
 		else
@@ -225,14 +230,6 @@ public class Chat {
 		} 
 	}
 	
-	/**
-	 * @param m the message to be encrypted
-	 * @return encrypted String
-	 */
-	private String encryptMessage(String m) {
-		int[] temp = new Algorithm().ECB(m, "<6$b^*%2", false);
-		return new Algorithm().convertToString(temp);
-	}
 
 	/**
 	 * Gets the extension of a file

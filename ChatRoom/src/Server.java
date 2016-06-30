@@ -22,12 +22,19 @@ import javax.swing.text.StyledDocument;
 
 
 /**
+ * Server class is responsible for all clients using the application.
+ * The server maintains a log of when a user has connected or disconnected
+ * and will keep a copy of every text and image sent by clients for logging 
+ * purposes. The server determines whether a message is a global message and 
+ * should be sent to all users, or a private message and just relay the message
+ * to the original sender and recipient.
  * @author UlisesM
+ * 
  */
-public class Server extends JFrame{
+public class Server extends ServerClient{
 	
+	private JFrame frame = new JFrame();
 	private JTextPane textPane = new JTextPane();
-	private final int PORT_NO = 8888;
 	
 	// to hold all of the names of users online
 	private List<String> names = new ArrayList<String>();
@@ -36,38 +43,33 @@ public class Server extends JFrame{
 	private ArrayList<DataOutputStream> outs = new ArrayList<DataOutputStream>();
 	
 	private ServerSocket serverSocket = null;
-	
-	private Algorithm alg = new Algorithm(); // to decrypt/encrypt messages
-	private final String key = "<6$b^*%2"; // random key for encryption/decryption (match client's key)
-	
+		
 	private StyledDocument doc = (StyledDocument) textPane.getDocument();
 
 		
 	public Server() {
 		// set up gui components
-		setLayout(new BorderLayout());
+		frame.setLayout(new BorderLayout());
 		
 		DefaultCaret caret = (DefaultCaret)textPane.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE); // automatically scroll to bottom
 		 
-		add(new JScrollPane(textPane), BorderLayout.CENTER);
+		frame.add(new JScrollPane(textPane), BorderLayout.CENTER);
 		textPane.setEditable(false); // user can't edit info
-		setTitle("Server");
-		setSize(500, 300);
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setVisible(true);
+		frame.setTitle("Server");
+		frame.setSize(500, 300);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setVisible(true);
 		
 		doc.addStyle("Regular", null);	
 		doc.addStyle("Picture", null);
 		
-		// test algorithm
-		new Algorithm().ECB("HI", key, false);
-		new Algorithm().ECB("BYE", key, true);
-
+		// test algorithm (remove later)
+		decryptMessage(encryptMessage("HI")); // should return Hi
 		
 		try {
 			// create socket with PORT_NO
-			serverSocket = new ServerSocket(PORT_NO);
+			serverSocket = new ServerSocket(getPortNumber());
 			
 			doc.insertString(doc.getLength(), "Server started at " + new Date() + "\n", doc.getStyle("Regular"));
 			
@@ -93,8 +95,8 @@ public class Server extends JFrame{
 	}
 	
 	/**
+	 * Gives each client an own thread to operate
 	 * @author UlisesM
-	 * Gives each client an own thread to operate.
 	 */
 	class ThreadedClient extends Thread {
 		private Socket socket;
@@ -226,29 +228,9 @@ public class Server extends JFrame{
 					// nothing we can do here
 				}
 			}
-				
-			
-			
+	
 		}
 		
-		
-		/**
-		 * @param m the message to be decrypted
-		 * @return decrypted String using ECB
-		 */
-		private String decryptMessage(String m) {
-			int c[] = alg.ECB(m, key, true);
-			return alg.convertToString(c);
-		}
-		
-		/**
-		 * @param m the message to be encrypted
-		 * @return encrypted String using ECB
-		 */
-		private String encryptMessage(String m) {
-			int c[] = alg.ECB(m, key, false);
-			return alg.convertToString(c);
-		}
 		
 		/**
 		 * Sends image to client

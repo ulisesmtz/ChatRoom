@@ -21,18 +21,23 @@ import javax.swing.text.StyledDocument;
 
 
 /**
+ * Client class is responsible for maintaining a list of all chats open
+ * and deciding what to do with the input for from the server. For example, if
+ * the client receives [PICTURE] from the server, the client should read in the image
+ * and display it accordingly. Below are the lists of known commands by client
+ * [PICTURE] -> read byte array of image and display image
+ * [LIST] -> read in the list of all the names of users online to start a private chat
+ * [NAME] -> used in the beginning to keep inputting user's name
+ * [ACCEPTED] -> the user's name has been accepted
  * @author UlisesM
  */
-public class Client extends JFrame{
-	
-	private JPanel panel = new JPanel();           // panel to hold text field and text area
+public class Client extends ServerClient{
+	private JFrame frame = new JFrame();
+	private JPanel panel = new JPanel();         
 	private Socket socket;
 	private DataInputStream in;
 	private DataOutputStream out;
-	private final int PORT_NO = 8888;
 	private String name = "";                // name of client
-	private Algorithm alg = new Algorithm(); // to encrypt/decrypt messages
-	private final String key = "<6$b^*%2"; // random key for encryption/decryption (match server's key)
 	private JTabbedPane tabbedPane = new JTabbedPane();
 	private JPanel tabbedPanePanel = new JPanel();
 	private List<Chat> chats = new ArrayList<Chat>();     // all chats open in the client
@@ -48,42 +53,40 @@ public class Client extends JFrame{
 		// add gui elements
 		panel.setLayout(new BorderLayout());
 		
-		setLayout(new BorderLayout());	
-		add(tabbedPanePanel, BorderLayout.CENTER);
+		frame.setLayout(new BorderLayout());	
+		frame.add(tabbedPanePanel, BorderLayout.CENTER);
 
-		setTitle("Client");
-		setSize(500, 300);
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setVisible(true);	
-
+		frame.setTitle("Client");
+		frame.setSize(500, 300);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setVisible(true);	
 		
-		// test algorithms
-		new Algorithm().ECB("a", key, false);
-		new Algorithm().ECB("as", key, true);
-	
+		// test algorithms (remove later)
+		decryptMessage(encryptMessage("HI")); // should return Hi
+
 		// try to instantiate socket and input/output stream
 		try {
-			socket = new Socket("localhost", PORT_NO);
+			socket = new Socket(getHost(), getPortNumber());
 			in = new DataInputStream(socket.getInputStream());
 			out = new DataOutputStream(socket.getOutputStream());
 		} catch (IOException ioe) {
-			JOptionPane.showMessageDialog(this, "Can not connect to server.");
+			JOptionPane.showMessageDialog(frame, "Can not connect to server.");
 			System.exit(1);
 		}
 		
-		chats.add(new Chat(this, "Global"));
+		chats.add(new Chat(this, "Global")); // global chat
 		
 		// keep asking for user name until server accepts the unique name
 		try {
 			String s = in.readUTF();
 			while (!s.equals("[ACCEPTED]")) {
-				name = JOptionPane.showInputDialog(this, "Enter your name").trim();
+				name = JOptionPane.showInputDialog(frame, "Enter your name").trim();
 				out.writeUTF(name);	
 				s = in.readUTF();
 			}
 			
 		} catch (IOException e) {
-			JOptionPane.showMessageDialog(this, "Error with server. Try again later.");
+			JOptionPane.showMessageDialog(frame, "Error with server. Try again later.");
 			System.exit(1);
 		} catch (NullPointerException npe) {
 			// close application if user did not enter name
@@ -91,7 +94,7 @@ public class Client extends JFrame{
 		}
 		
 
-		setTitle(name);
+		frame.setTitle(name);
 
 		while (true) {
 			StyledDocument doc; // holds the styleddocument to append text/image
@@ -143,7 +146,7 @@ public class Client extends JFrame{
 			} catch (BadLocationException ble) { // when using insertString
 				ble.printStackTrace();
 			} catch (IOException ioe) {
-				JOptionPane.showMessageDialog(this, "Error with server. Try again later.");
+				JOptionPane.showMessageDialog(frame, "Error with server. Try again later.");
 				System.exit(1);
 			} 	
 		}		
@@ -151,23 +154,6 @@ public class Client extends JFrame{
 	
 	
 
-	/**
-	 * @param m the message to be encrypted
-	 * @return encrypted String
-	 */
-	private String encryptMessage(String m) {
-		int[] temp = alg.ECB(m, key, false);
-		return alg.convertToString(temp);
-	}
-	
-	/**
-	 * @param m the message to be decrypted
-	 * @return decrypted String
-	 */
-	private String decryptMessage(String m) {
-		int[] temp = alg.ECB(m, key, true);
-		return alg.convertToString(temp);
-	}
 	
 	/**
 	 * Retrieve the correct styleddocument of the client to append the message
